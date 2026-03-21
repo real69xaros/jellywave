@@ -37,7 +37,7 @@
     },
     "npmRebuild": false,
     "linux": {
-      "target": ["AppImage", "snap"]
+      "target": ["AppImage"]
     },
     "win": {
       "target": ["nsis"]
