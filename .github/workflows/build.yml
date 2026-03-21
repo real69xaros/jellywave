@@ -21,7 +21,7 @@ jobs:
         run: npm install
 
       - name: Build Linux AppImage
-        run: npx electron-builder --linux
+        run: npx electron-builder --linux --publish never
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
@@ -44,7 +44,7 @@ jobs:
         run: npm install
 
       - name: Build Windows EXE
-        run: npx electron-builder --win
+        run: npx electron-builder --win --publish never
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
