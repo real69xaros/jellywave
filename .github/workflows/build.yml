@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-desktop:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -20,14 +20,37 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Windows and Linux EXEs
-        run: npm run build:desktop
+      - name: Build Linux AppImage
+        run: npx electron-builder --linux
 
-      - name: Upload Desktop Artifacts
+      - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Desktop-Releases
-          path: homepage/releases/
+          name: Linux-Release
+          path: homepage/releases/*.AppImage
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Windows EXE
+        run: npx electron-builder --win
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Release
+          path: homepage/releases/*.exe
 
   build-android:
     runs-on: ubuntu-latest
