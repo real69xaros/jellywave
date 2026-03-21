@@ -1,0 +1,46 @@
+{
+  "name": "jellywave",
+  "version": "1.0.0",
+  "description": "Desktop music app connected to Jellyfin",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon backend/server.js",
+    "backend-only": "node backend/server.js",
+    "electron-only": "electron .",
+    "build:desktop": "electron-builder --linux --win",
+    "build:android": "npx cap copy android && npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "axios": "^1.6.8",
+    "connect-sqlite3": "^0.9.15",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "nodemon": "^3.1.0"
+  },
+  "build": {
+    "appId": "com.xaros.jellywave",
+    "productName": "JellyWave",
+    "directories": {
+      "output": "homepage/releases"
+    },
+    "npmRebuild": false,
+    "linux": {
+      "target": ["AppImage", "snap"]
+    },
+    "win": {
+      "target": ["nsis"]
+    }
+  }
+}

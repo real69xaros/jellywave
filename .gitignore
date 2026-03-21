@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Dependencies
+node_modules/
+
+# Build outputs
+homepage/releases/
+android/app/build/
+android/build/
+android/.gradle/
+android/capacitor-cordova-android-plugins/
+
+# Android local config (machine-specific SDK path)
+android/local.properties
+
+# Data files
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/

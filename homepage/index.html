@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JellyWave | A Premium Music Experience</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+    <!-- Transparent Header -->
+    <header class="site-header">
+        <div class="logo"><i class="fa-solid fa-water"></i> JellyWave</div>
+        <nav class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#platforms">Platforms</a>
+            <a href="#faq">FAQ</a>
+            <a href="/app/" class="btn btn-outline" style="margin-right: 15px;">Web Player</a>
+            <a href="#downloads" class="btn btn-primary">Download</a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="gradient-text">Your Music.<br>Beautifully<br>Organized.</h1>
+            <p class="subtitle">Stream your music seamlessly with an intuitive, blazing-fast, and breathtakingly premium desktop and web application.</p>
+            <div class="hero-actions">
+                <a href="#downloads" class="btn btn-primary btn-large"><i class="fa-brands fa-linux"></i> Download for Linux</a>
+                <a href="/app/" class="btn btn-outline btn-large">Launch Web Player <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div class="platforms-supported">
+                <span>Available on:</span>
+                <i class="fa-brands fa-windows" title="Windows"></i>
+                <i class="fa-brands fa-linux" title="Linux"></i>
+                <i class="fa-brands fa-android" title="Android"></i>
+                <i class="fa-brands fa-chrome" title="Web"></i>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="mockup-window">
+                <div class="mockup-header">
+                    <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                </div>
+                <div style="padding: 20px; font-weight:700; font-size: 24px;">
+                    <i class="fa-solid fa-water" style="color:#FA233B;"></i> Welcome back
+                </div>
+                <div style="display:flex; gap:15px; padding:0 20px;">
+                    <div style="width:120px; height:120px; background:#222; border-radius:8px;"></div>
+                    <div style="width:120px; height:120px; background:#333; border-radius:8px;"></div>
+                    <div style="width:120px; height:120px; background:#444; border-radius:8px;"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-title">
+                <h2>Designed for Audiophiles</h2>
+                <p>Features that make your music library feel like a multi-million dollar streaming service.</p>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-bolt"></i></div>
+                    <h3>Blazing Fast</h3>
+                    <p>Highly optimized caching layer reduces server load and loads your library instantly.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                    <h3>Secure by Default</h3>
+                    <p>Complete proxy abstraction keeps the native library infrastructure securely isolated from client connections.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+                    <h3>Cross-Platform</h3>
+                    <p>Write once, run anywhere. Native installers for Windows, Linux, and Android.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+                    <h3>Cloudflare Ready</h3>
+                    <p>Built from the ground up to respect reverse proxy headers and deploy smoothly on modern infrastructure.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Downloads Section -->
+    <section id="downloads" class="downloads">
+        <div class="container text-center">
+            <h2>Get JellyWave Today</h2>
+            <p style="margin-bottom: 40px; color: var(--text-secondary);">Choose your platform and start streaming your library.</p>
+            
+            <div class="download-grid">
+                <div class="download-card">
+                    <i class="fa-brands fa-windows"></i>
+                    <h3>Windows</h3>
+                    <p>Windows 10 / 11 (64-bit)</p>
+                    <a href="/releases/JellyWave-Setup.exe" class="btn btn-primary">Download .exe</a>
+                </div>
+                <div class="download-card">
+                    <i class="fa-brands fa-linux"></i>
+                    <h3>Linux</h3>
+                    <p>AppImage / Snap (64-bit)</p>
+                    <a href="/releases/JellyWave.AppImage" class="btn btn-primary">Download AppImage</a>
+                </div>
+                <div class="download-card">
+                    <i class="fa-brands fa-android"></i>
+                    <h3>Android</h3>
+                    <p>Android 9.0+</p>
+                    <a href="/releases/JellyWave.apk" class="btn btn-primary">Download APK</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Panel Tease -->
+    <section class="admin-tease">
+        <div class="container" style="display:flex; align-items:center; gap: 40px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+                <h2 style="font-size: 36px; margin-bottom: 20px;">Built-in Admin Power</h2>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+                    Control who can access your JellyWave instance. The integrated Admin Dashboard lets you manage users and roles seamlessly.
+                </p>
+                <a href="/app/" class="btn btn-outline">Try it in the Web Player</a>
+            </div>
+            <div style="flex: 1; min-width: 300px;">
+                <div class="mockup-window" style="background:#111; padding:30px;">
+                    <div style="background:#222; padding:15px; border-radius:6px; margin-bottom:10px;">User: Alice (Role: user)</div>
+                    <div style="background:#222; padding:15px; border-radius:6px;">User: Admin (Role: admin)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="faq container">
+        <h2 class="text-center" style="margin-bottom:40px;">Frequently Asked Questions</h2>
+        <div class="faq-item">
+            <h4>Does it work externally behind Cloudflare?</h4>
+            <p>Yes. Simply reverse proxy to port `1075` using Cloudflare Tunnels or Nginx proxy manager.</p>
+        </div>
+        <div class="faq-item">
+            <h4>Can multiple users log in?</h4>
+            <p>Yes! Any registered user can browse the platform's library securely based on their account.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="logo"><i class="fa-solid fa-water"></i> JellyWave</div>
+            <p style="color: var(--text-secondary); font-size: 14px; margin-top: 10px;">A premium open-source music streaming platform.</p>
+            <div class="footer-links" style="margin-top: 20px;">
+                <a href="#">GitHub</a>
+                <a href="#">Documentation</a>
+                <a href="#">Privacy Policy</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

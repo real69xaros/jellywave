@@ -1,0 +1,9 @@
+{
+  "appId": "com.jellywave.app",
+  "appName": "JellyWave",
+  "webDir": "frontend",
+  "server": {
+    "url": "https://jellywave.verbelnodes.com/app/",
+    "cleartext": true
+  }
+}

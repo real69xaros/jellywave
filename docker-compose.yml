@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  jellywave:
+    build: .
+    container_name: jellywave
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-1075}:${APP_PORT:-1075}"
+    volumes:
+      - ./data:/usr/src/app/data
+    env_file:
+      - .env
