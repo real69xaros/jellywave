@@ -13,6 +13,8 @@ class ApiClient {
       return this._cache.get(endpoint);
     }
     const opts = { method, headers: {}, credentials: 'include' };
+    const token = localStorage.getItem('jw_token');
+    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
     if (body) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -29,9 +31,21 @@ class ApiClient {
 
   // Auth
   checkAuth() { return this.req('/auth/me'); }
-  login(username,password) { return this.req('/auth/login', 'POST', {username,password}); }
-  register(username,password) { return this.req('/auth/register', 'POST', {username,password}); }
-  logout() { return this.req('/auth/logout', 'POST'); }
+  async login(username, password) {
+    const data = await this.req('/auth/login', 'POST', { username, password });
+    if (data.token) localStorage.setItem('jw_token', data.token);
+    return data;
+  }
+  async register(username, password) {
+    const data = await this.req('/auth/register', 'POST', { username, password });
+    if (data.token) localStorage.setItem('jw_token', data.token);
+    return data;
+  }
+  async logout() {
+    const result = await this.req('/auth/logout', 'POST');
+    localStorage.removeItem('jw_token');
+    return result;
+  }
 
   // Catalog Engine
   getArtists() { return this.req('/catalog/artists', 'GET', null, { cache: true }); }

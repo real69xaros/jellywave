@@ -76,6 +76,14 @@ async function initDB() {
     -- Sessions are managed by connect-sqlite3 in server.js but we could create it here if we were manually managing tokens
   `);
   
+  // Auth tokens table for mobile/cross-origin clients
+  try { await db.exec(`CREATE TABLE IF NOT EXISTS auth_tokens (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`); } catch(e){}
+
   // Migrations for Phase 13 features
   try { await db.exec("ALTER TABLE playlists ADD COLUMN is_public INTEGER DEFAULT 0"); } catch(e){}
   try { await db.exec("ALTER TABLE playlists ADD COLUMN description TEXT"); } catch(e){}

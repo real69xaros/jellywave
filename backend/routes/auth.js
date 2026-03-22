@@ -3,6 +3,12 @@ const router = express.Router();
 const { initDB } = require('../db');
 const crypto = require('crypto');
 
+async function createToken(db, userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  await db.run('INSERT INTO auth_tokens (token, user_id) VALUES (?, ?)', [token, userId]);
+  return token;
+}
+
 // Utility function to hash password using Node's native crypto
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -38,11 +44,12 @@ router.post('/register', async (req, res) => {
 
     const user = { id: result.lastID, username, role, is_approved: isApproved };
     req.session.user = user;
-    
-    await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)', 
+    const token = await createToken(db, user.id);
+
+    await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)',
       ['info', 'User registered', JSON.stringify({ userId: user.id, username })]);
 
-    res.json({ success: true, user });
+    res.json({ success: true, user, token });
   } catch (error) {
     if (error.message.includes('UNIQUE')) {
       return res.status(409).json({ error: 'Username already exists' });
@@ -77,11 +84,12 @@ router.post('/login', async (req, res) => {
       display_name: user.display_name
     };
     req.session.user = sessionUser;
+    const token = await createToken(db, user.id);
 
-    await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)', 
+    await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)',
       ['info', 'User logged in', JSON.stringify({ userId: user.id, username })]);
 
-    res.json({ success: true, user: sessionUser });
+    res.json({ success: true, user: sessionUser, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -89,18 +97,34 @@ router.post('/login', async (req, res) => {
 });
 
 // Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try { const db = await initDB(); await db.run('DELETE FROM auth_tokens WHERE token = ?', [token]); } catch(e){}
+  }
   req.session.destroy();
   res.json({ success: true });
 });
 
 // Get Session User
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   if (req.session.user) {
-    res.json({ authenticated: true, user: req.session.user });
-  } else {
-    res.json({ authenticated: false });
+    return res.json({ authenticated: true, user: req.session.user });
   }
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const db = await initDB();
+      const row = await db.get(
+        'SELECT u.id, u.username, u.role, u.is_approved, u.avatar_url, u.display_name FROM auth_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = ?',
+        [token]
+      );
+      if (row) return res.json({ authenticated: true, user: row });
+    } catch(e){}
+  }
+  res.json({ authenticated: false });
 });
 
 module.exports = router;

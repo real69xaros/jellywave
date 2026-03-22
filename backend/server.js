@@ -55,13 +55,34 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Approve check for data routes
-function requireApproved(req, res, next) {
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-  if (!req.session.user.is_approved && req.session.user.role !== 'admin') {
-     return res.status(403).json({ error: 'Account pending approval' });
+// Approve check for data routes — supports both session cookies and Bearer tokens
+async function requireApproved(req, res, next) {
+  if (req.session.user) {
+    if (!req.session.user.is_approved && req.session.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Account pending approval' });
+    }
+    return next();
   }
-  next();
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const { initDB } = require('./db');
+      const db = await initDB();
+      const row = await db.get(
+        'SELECT u.id, u.username, u.role, u.is_approved, u.avatar_url, u.display_name FROM auth_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = ?',
+        [token]
+      );
+      if (row) {
+        if (!row.is_approved && row.role !== 'admin') {
+          return res.status(403).json({ error: 'Account pending approval' });
+        }
+        req.session.user = row; // make downstream routes work unchanged
+        return next();
+      }
+    } catch(e) {}
+  }
+  return res.status(401).json({ error: 'Unauthorized' });
 }
 
 app.use('/api/profile', requireApproved, profileRoutes);
