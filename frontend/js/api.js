@@ -30,7 +30,11 @@ class ApiClient {
   bust(endpoint) { this._cache.delete(endpoint); }
 
   // Auth
-  checkAuth() { return this.req('/auth/me'); }
+  async checkAuth() {
+    const data = await this.req('/auth/me');
+    if (data.token) localStorage.setItem('jw_token', data.token);
+    return data;
+  }
   async login(username, password) {
     const data = await this.req('/auth/login', 'POST', { username, password });
     if (data.token) localStorage.setItem('jw_token', data.token);

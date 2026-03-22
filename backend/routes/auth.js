@@ -110,7 +110,13 @@ router.post('/logout', async (req, res) => {
 // Get Session User
 router.get('/me', async (req, res) => {
   if (req.session.user) {
-    return res.json({ authenticated: true, user: req.session.user });
+    try {
+      const db = await initDB();
+      const token = await createToken(db, req.session.user.id);
+      return res.json({ authenticated: true, user: req.session.user, token });
+    } catch(e) {
+      return res.json({ authenticated: true, user: req.session.user });
+    }
   }
   const authHeader = req.headers['authorization'];
   if (authHeader?.startsWith('Bearer ')) {
