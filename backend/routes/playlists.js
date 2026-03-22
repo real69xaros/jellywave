@@ -10,7 +10,7 @@ router.use((req, res, next) => {
 router.get('/', async (req, res) => {
   const db = await initDB();
   const playlists = await db.all(`
-    SELECT p.*, u.username as creator_name 
+    SELECT p.*, u.username as creator_name, u.display_name as creator_display, u.avatar_url as creator_avatar 
     FROM playlists p 
     JOIN users u ON p.user_id = u.id 
     WHERE user_id = ? ORDER BY created_at DESC
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 router.get('/public', async (req, res) => {
   const db = await initDB();
   const playlists = await db.all(`
-    SELECT p.*, u.username as creator_name 
+    SELECT p.*, u.username as creator_name, u.display_name as creator_display, u.avatar_url as creator_avatar 
     FROM playlists p 
     JOIN users u ON p.user_id = u.id 
     WHERE p.is_public = 1 
@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const db = await initDB();
   const playlist = await db.get(`
-    SELECT p.*, u.username as creator_name 
+    SELECT p.*, u.username as creator_name, u.display_name as creator_display, u.avatar_url as creator_avatar 
     FROM playlists p 
     JOIN users u ON p.user_id = u.id 
     WHERE p.id = ?
@@ -63,6 +63,24 @@ router.delete('/:id', async (req, res) => {
   const db = await initDB();
   await db.run('DELETE FROM playlists WHERE id = ? AND user_id = ?', [req.params.id, req.session.user.id]);
   res.json({ success: true });
+});
+
+router.put('/:id', async (req, res) => {
+    const { name, is_public, description, cover_url } = req.body;
+    const db = await initDB();
+    const playlist = await db.get('SELECT * FROM playlists WHERE id = ? AND user_id = ?', [req.params.id, req.session.user.id]);
+    if (!playlist) return res.status(403).json({ error: 'Not authorized or not found' });
+    
+    const newName = name !== undefined ? name : playlist.name;
+    const newPublic = is_public !== undefined ? (is_public ? 1 : 0) : playlist.is_public;
+    const newDesc = description !== undefined ? description : playlist.description;
+    const newCover = cover_url !== undefined ? cover_url : playlist.cover_url;
+    
+    await db.run(
+        'UPDATE playlists SET name = ?, is_public = ?, description = ?, cover_url = ? WHERE id = ?',
+        [newName, newPublic, newDesc, newCover, req.params.id]
+    );
+    res.json({ success: true, updated: { name: newName, is_public: newPublic, description: newDesc, cover_url: newCover } });
 });
 
 router.get('/:id/tracks', async (req, res) => {

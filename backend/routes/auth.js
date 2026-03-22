@@ -27,15 +27,16 @@ router.post('/register', async (req, res) => {
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
     const role = userCount.count === 0 ? 'admin' : 'user';
 
+    const isApproved = role === 'admin' ? 1 : 0;
     const { salt, hash } = hashPassword(password);
     const passwordString = `${salt}:${hash}`;
 
     const result = await db.run(
-      'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-      [username, passwordString, role]
+      'INSERT INTO users (username, password, role, is_approved) VALUES (?, ?, ?, ?)',
+      [username, passwordString, role, isApproved]
     );
 
-    const user = { id: result.lastID, username, role };
+    const user = { id: result.lastID, username, role, is_approved: isApproved };
     req.session.user = user;
     
     await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)', 
@@ -67,7 +68,14 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    const sessionUser = { id: user.id, username: user.username, role: user.role };
+    const sessionUser = { 
+      id: user.id, 
+      username: user.username, 
+      role: user.role, 
+      is_approved: user.is_approved,
+      avatar_url: user.avatar_url,
+      display_name: user.display_name
+    };
     req.session.user = sessionUser;
 
     await db.run('INSERT INTO logs (level, message, details) VALUES (?, ?, ?)', 

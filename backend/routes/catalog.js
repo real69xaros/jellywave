@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const catalogService = require('../jellyfinService'); // Retained internal module name, acts as CatalogService
+const streamTokens = require('../streamTokens');
 
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
@@ -43,6 +44,14 @@ router.post('/items', async (req, res) => {
     res.json({ items });
 });
 
+// Issue a short-lived single-use token for direct (non-tunneled) streaming
+router.get('/stream-token/:id', (req, res) => {
+  const directUrl = process.env.STREAM_DIRECT_URL;
+  if (!directUrl) return res.status(404).json({ error: 'Direct streaming not configured' });
+  const token = streamTokens.create(req.params.id);
+  res.json({ url: `${directUrl}/stream/${req.params.id}?token=${token}` });
+});
+
 // The absolute most critical change:
 // Proxying the Audio Stream to hide the actual Jellyfin server completely
 router.get('/stream/:id', async (req, res) => {
@@ -67,7 +76,11 @@ router.get('/stream/:id', async (req, res) => {
         res.setHeader(key, response.headers[key]);
       }
     }
-    
+
+    // Tell Cloudflare not to buffer — stream chunks to client immediately
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Cache-Control', 'no-cache');
+
     res.status(response.status);
     response.data.pipe(res);
   } catch (err) {

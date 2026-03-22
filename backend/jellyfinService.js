@@ -1,6 +1,8 @@
 const axios = require('axios');
 const config = require('./config');
 
+const axiosInstance = axios.create();
+
 class CatalogService {
   constructor() {
     this.baseUrl = config.jellyfin.url;
@@ -37,7 +39,7 @@ class CatalogService {
   async authenticate() {
     if (!this.baseUrl || !this.username) return false;
     try {
-      const response = await axios.post(`${this.baseUrl}/Users/AuthenticateByName`, {
+      const response = await axiosInstance.post(`${this.baseUrl}/Users/AuthenticateByName`, {
         Username: this.username,
         Pw: this.password
       }, { headers: this.getAuthHeaders() });
@@ -62,7 +64,7 @@ class CatalogService {
     
     return this.cachedRequest('artists', async () => {
       try {
-        const response = await axios.get(`${this.baseUrl}/Artists`, {
+        const response = await axiosInstance.get(`${this.baseUrl}/Artists`, {
           headers: this.getAuthHeaders(),
           params: { userId: this.userId, SortBy: 'SortName' }
         });
@@ -80,7 +82,7 @@ class CatalogService {
           try {
               const params = { userId: this.userId, SortBy: 'SortName', IncludeItemTypes: 'MusicAlbum', Recursive: true };
               if (artistId) params.ArtistIds = artistId;
-              const response = await axios.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
+              const response = await axiosInstance.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
                   headers: this.getAuthHeaders(),
                   params
               });
@@ -95,7 +97,7 @@ class CatalogService {
       if (!this.token) return null;
       return this.cachedRequest(`artist_${artistId}`, async () => {
           try {
-              const response = await axios.get(`${this.baseUrl}/Users/${this.userId}/Items/${artistId}`, {
+              const response = await axiosInstance.get(`${this.baseUrl}/Users/${this.userId}/Items/${artistId}`, {
                   headers: this.getAuthHeaders()
               });
               return response.data;
@@ -111,7 +113,7 @@ class CatalogService {
               const params = { userId: this.userId, SortBy: 'PlayCount,SortName', SortOrder: 'Descending,Ascending', IncludeItemTypes: 'Audio', Recursive: true };
               if (albumId) params.ParentId = albumId;
               if (artistId) { params.ArtistIds = artistId; params.Limit = 200; } // Increased limit for all tracks
-              const response = await axios.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
+              const response = await axiosInstance.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
                   headers: this.getAuthHeaders(),
                   params
               });
@@ -125,7 +127,7 @@ class CatalogService {
   async search(query) {
     if (!this.token) return { artists: [], albums: [], songs: [] };
     try {
-      const response = await axios.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
+      const response = await axiosInstance.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
         headers: this.getAuthHeaders(),
         params: {
           searchTerm: query,
@@ -152,7 +154,7 @@ class CatalogService {
     const sortedIds = [...idsArray].sort().join(',');
     return this.cachedRequest(`items_${sortedIds}`, async () => {
       try {
-        const response = await axios.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
+        const response = await axiosInstance.get(`${this.baseUrl}/Users/${this.userId}/Items`, {
           headers: this.getAuthHeaders(),
           params: { Ids: idsArray.join(','), Recursive: true }
         });

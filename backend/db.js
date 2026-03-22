@@ -81,6 +81,14 @@ async function initDB() {
   try { await db.exec("ALTER TABLE playlists ADD COLUMN description TEXT"); } catch(e){}
   try { await db.exec("ALTER TABLE playlists ADD COLUMN cover_url TEXT"); } catch(e){}
   
+  // Migrations for V2 Profiles & Access Control
+  try { await db.exec("ALTER TABLE users ADD COLUMN is_approved INTEGER DEFAULT 0"); } catch(e){}
+  try { await db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT"); } catch(e){}
+  try { await db.exec("ALTER TABLE users ADD COLUMN bio TEXT"); } catch(e){}
+  try { await db.exec("ALTER TABLE users ADD COLUMN display_name TEXT"); } catch(e){}
+  // Ensure admin is approved by default
+  await db.run("UPDATE users SET is_approved = 1 WHERE role = 'admin'");
+  
   dbInstance = db;
   return db;
 }

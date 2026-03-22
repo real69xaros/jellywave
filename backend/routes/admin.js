@@ -11,7 +11,7 @@ router.use((req, res, next) => {
 
 router.get('/users', async (req, res) => {
   const db = await initDB();
-  const users = await db.all('SELECT id, username, role, created_at FROM users');
+  const users = await db.all('SELECT id, username, role, created_at, is_approved, display_name FROM users');
   res.json({ users });
 });
 
@@ -19,6 +19,18 @@ router.post('/users/:id/role', async (req, res) => {
   const { role } = req.body;
   const db = await initDB();
   await db.run('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
+  res.json({ success: true });
+});
+
+router.post('/users/:id/approve', async (req, res) => {
+  const db = await initDB();
+  await db.run('UPDATE users SET is_approved = 1 WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+router.post('/users/:id/revoke', async (req, res) => {
+  const db = await initDB();
+  await db.run('UPDATE users SET is_approved = 0 WHERE id = ?', [req.params.id]);
   res.json({ success: true });
 });
 

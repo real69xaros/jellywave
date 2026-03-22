@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JellyWave</title>
+  <link rel="icon" type="image/svg+xml" href="img/logo.svg">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
@@ -15,7 +16,7 @@
     <!-- Sidebar -->
     <nav id="sidebar">
       <div class="logo">
-        <i class="fa-solid fa-water"></i> JellyWave
+        <img src="img/logo-glow.svg" alt="JellyWave" style="height: 28px; width: 28px;"> JellyWave
       </div>
       <ul class="nav-links">
         <li data-route="home" class="active"><i class="fa-solid fa-house"></i> Home</li>
@@ -44,7 +45,7 @@
         <div class="header-right">
           <button id="admin-panel-btn" class="btn-outline" style="display: none;" data-route="admin">Admin Panel</button>
           <div class="profile-dropdown">
-            <button id="profile-btn"><i class="fa-solid fa-user"></i> <span id="profile-name">User</span></button>
+            <button id="profile-btn" style="gap:8px;"><img id="profile-avatar" style="display:none; width:24px; height:24px; border-radius:50%; object-fit:cover;"><i id="profile-icon" class="fa-solid fa-user"></i> <span id="profile-name">User</span></button>
             <div class="dropdown-content" id="profile-menu">
               <a href="#" data-route="profile">Profile</a>
               <a href="#" id="logout-btn">Log out</a>
@@ -104,6 +105,7 @@
 
   <!-- Scripts -->
   <script src="js/api.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/player.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>

@@ -74,10 +74,22 @@ class UIManager {
   renderCard(item, onClick) {
     const card = document.createElement('div');
     card.className = `card ${item.Type === 'MusicArtist' ? 'rounded-img' : ''}`;
-    const fallbackSvg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><defs><linearGradient id='gf' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='#2a0845'/><stop offset='100%' stop-color='#6441A5'/></linearGradient></defs><rect fill='url(#gf)' width='200' height='200'/><text x='100' y='110' font-family='sans-serif' font-size='60' font-weight='bold' fill='white' text-anchor='middle'>${item.Name.charAt(0).toUpperCase()}</text></svg>`);
+    
+    const colors = [['#1db954', '#19e68c'], ['#e91e63', '#ff6090'], ['#9c27b0', '#d05ce3'], ['#ff9800', '#ffc107'], ['#00bcd4', '#4dd0e1'], ['#f44336', '#ff7961']];
+    const n = item.Name || 'A';
+    const cidx = n.length % colors.length;
+    const fallbackSvg = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><defs><linearGradient id='gf' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${colors[cidx][0]}'/><stop offset='100%' stop-color='${colors[cidx][1]}'/></linearGradient></defs><rect fill='url(#gf)' width='200' height='200'/><text x='100' y='110' font-family='sans-serif' font-size='80' font-weight='700' fill='#ffffff' text-anchor='middle'>${n.charAt(0).toUpperCase()}</text></svg>`);
+    
     const imgUrl = item.ImageTags?.Primary ? api.getArtworkUrl(item.Id) : `data:image/svg+xml;utf8,${fallbackSvg}`;
+    
+    let playBtnHtml = '';
+    if (item.Type !== 'MusicArtist') {
+        playBtnHtml = `<div class="card-play-btn"><i class="fa-solid fa-play"></i></div>`;
+    }
+
     card.innerHTML = `
       <img src="${imgUrl}" alt="${item.Name}">
+      ${playBtnHtml}
       <div class="title">${item.Name}</div>
       ${item.AlbumArtist || item.ArtistName ? `<div class="subtitle">${item.AlbumArtist || item.ArtistName}</div>` : ''}
     `;
@@ -99,19 +111,42 @@ class UIManager {
   renderSongRow(song, index, onClick, onContext) {
     const row = document.createElement('div');
     row.className = 'list-item';
+    row.dataset.trackId = song.Id;
+    const isLiked = typeof app !== 'undefined' && app.favorites?.has(song.Id);
     row.innerHTML = `
-      <div class="col-num"><span class="col-num-text">${index + 1}</span><i class="fa-solid fa-play col-num-play"></i></div>
+      <div class="col-num">
+        <span class="col-num-text">${index + 1}</span>
+        <i class="fa-solid fa-play col-num-play"></i>
+        <div class="col-num-eq"><span></span><span></span><span></span><span></span></div>
+      </div>
       <div class="col-title">${song.Name}</div>
       <div class="col-artist">${song.Artists?.join(', ') || ''}</div>
-      <div class="col-time" style="display:flex; justify-content:space-between; align-items:center;">
-         ${this.formatTime(song.RunTimeTicks ? song.RunTimeTicks / 10000000 : 0)}
-         <button class="queue-action-btn mobile-menu-btn" style="padding: 0 10px;" aria-label="More"><i class="fa-solid fa-ellipsis"></i></button>
+      <div class="col-time">
+         <button class="row-like-btn row-actions ${isLiked ? 'liked' : ''}" aria-label="Like"><i class="fa-${isLiked ? 'solid' : 'regular'} fa-heart"></i></button>
+         <span>${this.formatTime(song.RunTimeTicks ? song.RunTimeTicks / 10000000 : 0)}</span>
+         <button class="queue-action-btn mobile-menu-btn row-actions" aria-label="More"><i class="fa-solid fa-ellipsis"></i></button>
       </div>
     `;
+    row.addEventListener('mouseenter', () => player.preload(song));
+
+    // Like button
+    const likeBtn = row.querySelector('.row-like-btn');
+    likeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if(typeof app !== 'undefined') {
+            await app.toggleFavorite(song.Id);
+            const nowLiked = app.favorites.has(song.Id);
+            likeBtn.className = `row-like-btn row-actions ${nowLiked ? 'liked' : ''}`;
+            likeBtn.innerHTML = `<i class="fa-${nowLiked ? 'solid' : 'regular'} fa-heart"></i>`;
+        }
+    });
+
     row.addEventListener('click', (e) => {
         if(e.target.closest('.mobile-menu-btn')) {
             e.stopPropagation();
             if(onContext) onContext(e, song);
+        } else if(e.target.closest('.row-like-btn')) {
+            // handled above
         } else {
             onClick(e);
         }

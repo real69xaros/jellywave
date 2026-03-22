@@ -1,6 +1,7 @@
 class AudioPlayer {
   constructor() {
     this.audio = document.getElementById('audio-player');
+    this.preloadAudio = new Audio();
     this.queue = [];
     this.currentIndex = -1;
     this.isPlaying = false;
@@ -19,15 +20,40 @@ class AudioPlayer {
          if (this.isRepeating) { this.audio.currentTime = 0; this.audio.play(); }
          else this.next();
       });
+      // Preload next track when current one is near the end
+      this.audio.addEventListener('timeupdate', () => {
+        if (this.audio.duration && this.audio.currentTime > this.audio.duration - 20) {
+          this._preloadNext();
+        }
+      });
     }
   }
 
-  playTrack(track, queue = null) {
+  async preload(track) {
+    if (this.isPlaying) return; // don't interrupt current playback
+    if (this.audio.dataset.preloaded === track.Id) return;
+    this.audio.dataset.preloaded = track.Id;
+    const blob = await storage.get('blobs', track.Id);
+    this.audio.src = blob ? URL.createObjectURL(blob) : await api.getDirectStreamUrl(track.Id);
+  }
+
+  async _preloadNext() {
+    const next = this.queue[this.currentIndex + 1];
+    if (!next || this.preloadAudio.dataset.preloaded === next.Id) return;
+    this.preloadAudio.dataset.preloaded = next.Id;
+    const blob = await storage.get('blobs', next.Id);
+    this.preloadAudio.src = blob ? URL.createObjectURL(blob) : await api.getDirectStreamUrl(next.Id);
+    this.preloadAudio.preload = 'auto';
+  }
+
+  async playTrack(track, queue = null) {
+    this.audio.pause();
+
     if (queue) {
       if(this.isShuffling) this.queue = [...queue].sort(() => Math.random() - 0.5);
       else this.queue = [...queue];
     }
-    
+
     const existingIdx = this.queue.findIndex(t => t.Id === track.Id);
     if(existingIdx !== -1) {
       this.currentIndex = existingIdx;
@@ -35,8 +61,18 @@ class AudioPlayer {
       this.queue.splice(this.currentIndex + 1, 0, track);
       this.currentIndex++;
     }
-    
-    this.audio.src = api.getStreamUrl(track.Id);
+
+    if (this.audio.dataset.preloaded === track.Id) {
+        delete this.audio.dataset.preloaded;
+    } else {
+        const blob = await storage.get('blobs', track.Id);
+        if (blob) {
+            this.audio.src = URL.createObjectURL(blob);
+        } else {
+            this.audio.src = await api.getDirectStreamUrl(track.Id);
+        }
+    }
+
     this.audio.play().catch(e => console.error(e));
     this.emitState();
   }
@@ -153,13 +189,16 @@ class AudioPlayer {
         let artworkUrl = api.getArtworkUrl(track.Id);
         let absoluteArt = artworkUrl.startsWith('http') ? artworkUrl : window.location.origin + artworkUrl;
         
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.Name,
-          artist: track.AlbumArtist || track.ArtistName || 'Unknown Artist',
-          album: track.Album || 'Unknown Album',
-          artwork: [
-            { src: absoluteArt, sizes: '512x512', type: 'image/jpeg' }
-          ]
+        storage.get('artwork', track.Id).then(blob => {
+            const finalArt = blob ? URL.createObjectURL(blob) : absoluteArt;
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: track.Name,
+              artist: track.AlbumArtist || track.ArtistName || 'Unknown Artist',
+              album: track.Album || 'Unknown Album',
+              artwork: [
+                { src: finalArt, sizes: '512x512', type: 'image/jpeg' }
+              ]
+            });
         });
 
         navigator.mediaSession.setActionHandler('play', () => this.togglePlay());

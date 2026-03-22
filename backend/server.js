@@ -3,8 +3,11 @@ const cors = require('cors');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
+const axios = require('axios');
 const config = require('./config');
 const { initDB } = require('./db');
+const streamTokens = require('./streamTokens');
+const catalogService = require('./jellyfinService');
 
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
@@ -50,23 +53,71 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/catalog', catalogRoutes);
-app.use('/api/library', libraryRoutes);
-app.use('/api/playlists', playlistRoutes);
-app.use('/api/user-data', userDataRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Approve check for data routes
+function requireApproved(req, res, next) {
+  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!req.session.user.is_approved && req.session.user.role !== 'admin') {
+     return res.status(403).json({ error: 'Account pending approval' });
+  }
+  next();
+}
+
+app.use('/api/profile', requireApproved, profileRoutes);
+app.use('/api/catalog', requireApproved, catalogRoutes);
+app.use('/api/library', requireApproved, libraryRoutes);
+app.use('/api/playlists', requireApproved, playlistRoutes);
+app.use('/api/user-data', requireApproved, userDataRoutes);
+
+// Direct stream server — bypasses Cloudflare tunnel, token-authenticated
+const streamPort = process.env.STREAM_PORT || 1076;
+const streamApp = express();
+streamApp.use(cors({ origin: true, credentials: true }));
+
+streamApp.get('/stream/:id', async (req, res) => {
+  const itemId = streamTokens.consume(req.query.token);
+  if (!itemId || itemId !== req.params.id) return res.status(401).send('Unauthorized');
+
+  const url = catalogService.getInternalStreamUrl(itemId);
+  if (!url) return res.status(404).send('Not found');
+
+  const headers = {};
+  if (req.headers.range) headers['Range'] = req.headers.range;
+
+  try {
+    const response = await axios({
+      method: 'GET', url, headers,
+      responseType: 'stream',
+      validateStatus: s => s < 400
+    });
+    const allowed = ['content-type', 'content-length', 'accept-ranges', 'content-range'];
+    for (const key of allowed) {
+      if (response.headers[key]) res.setHeader(key, response.headers[key]);
+    }
+    res.status(response.status);
+    response.data.pipe(res);
+  } catch (e) {
+    if (!res.headersSent) res.status(500).send('Stream error');
+  }
+});
 
 async function startServer() {
   await initDB();
   console.log('SQLite internal app DB initialized.');
 
-  if (require.main === module) {
-    app.listen(config.port, '0.0.0.0', () => {
-      console.log(`JellyWave backend listening on port ${config.port}`);
+  if (process.env.STREAM_DIRECT_URL) {
+    streamApp.listen(streamPort, '0.0.0.0', () => {
+      console.log(`Direct stream server on port ${streamPort}`);
     });
   }
-  return app;
+
+  return new Promise((resolve) => {
+    const srv = app.listen(config.port, '0.0.0.0', () => {
+      console.log(`JellyWave backend listening on port ${config.port}`);
+      resolve(app);
+    });
+  });
 }
 
 if (require.main === module) {
