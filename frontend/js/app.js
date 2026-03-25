@@ -14,7 +14,7 @@ const AuthView = `
 const AccessDeniedView = `
   <div class="auth-panel">
     <img src="img/logo-glow.svg" alt="JellyWave Logo" style="height: 60px; width: 60px; margin-bottom: 20px; display: inline-block;">
-    <h2 style="color:var(--accent-color);">Access Restricted</h2>
+    <h2 style="color:var(--accent);">Access Restricted</h2>
     <p style="color:var(--text-secondary); margin:20px 0; font-size:16px; line-height:1.5;">This account does not have access yet. <br>To get access, join our Discord and open a ticket.</p>
     <a href="https://discord.gg/jellywaveapp" target="_blank" class="btn-primary" style="display:inline-block; text-decoration:none; margin-bottom:15px; background:#5865F2;">Join Discord</a>
     <div class="auth-switch"><a href="#" id="ad-logout-btn">Log back out</a></div>
@@ -227,7 +227,7 @@ class App {
       }
       
       likeBtn.style.display = 'block';
-      likeBtn.innerHTML = this.favorites.has(state.track.Id) ? '<i class="fa-solid fa-heart" style="color:var(--accent-color);"></i>' : '<i class="fa-regular fa-heart"></i>';
+      likeBtn.innerHTML = this.favorites.has(state.track.Id) ? '<i class="fa-solid fa-heart" style="color:var(--accent);"></i>' : '<i class="fa-regular fa-heart"></i>';
       
       if(state.currentTime === 0 && state.isPlaying) api.addRecent(state.track.Id, 'Audio', state.track.Name).catch(()=>{});
     } else {
@@ -578,20 +578,26 @@ class App {
               if(!isCached) {
                   ui.toast(`Downloading: ${metadata.Name}...`, 'info');
                   const streamUrl = await api.getDirectStreamUrl(metadata.Id);
-                  const resp = await fetch(streamUrl);
+                  const fetchOpts = { credentials: 'include' };
+                  const token = localStorage.getItem('jw_token');
+                  if (token) fetchOpts.headers = { 'Authorization': `Bearer ${token}` };
+                  const resp = await fetch(streamUrl, fetchOpts);
+                  if (!resp.ok) throw new Error(`Stream error: ${resp.status}`);
                   const blob = await resp.blob();
                   
-                  // Store metadata
-                  await storage.put('tracks', metadata.Id, metadata);
+                  // Store metadata (ensure 'id' field matches IndexedDB keyPath)
+                  await storage.put('tracks', metadata.Id, { ...metadata, id: metadata.Id });
                   // Store blob
                   await storage.put('blobs', metadata.Id, blob);
                   
                   // Store artwork if exists
                   if(metadata.ImageTags?.Primary) {
                       const artUrl = api.getArtworkUrl(metadata.Id);
-                      const artResp = await fetch(artUrl);
-                      const artBlob = await artResp.blob();
-                      await storage.put('artwork', metadata.Id, artBlob);
+                      const artResp = await fetch(artUrl, fetchOpts);
+                      if (artResp.ok) {
+                          const artBlob = await artResp.blob();
+                          await storage.put('artwork', metadata.Id, artBlob);
+                      }
                   }
               }
               downloaded++;
@@ -966,8 +972,23 @@ class App {
                          this.renderPlaylistView(playlistMeta); 
                      };
                  }
+
+                 // Like button handler
+                 const likeBtn = row.querySelector('.row-like-btn');
+                 if(likeBtn && metadata) {
+                     likeBtn.onclick = async (e) => {
+                         e.stopPropagation();
+                         await this.toggleFavorite(metadata.Id);
+                         const nowLiked = this.favorites.has(metadata.Id);
+                         likeBtn.className = `row-like-btn row-actions ${nowLiked ? 'liked' : ''}`;
+                         likeBtn.innerHTML = `<i class="fa-${nowLiked ? 'solid' : 'regular'} fa-heart"></i>`;
+                     };
+                 }
                  
-                 row.onclick = () => { if(metadata) player.playTrack(metadata, finalTracks); };
+                 row.onclick = (e) => {
+                     if(e.target.closest('.row-like-btn') || e.target.closest('.rm-pl-trk')) return;
+                     if(metadata) player.playTrack(metadata, finalTracks);
+                 };
                  row.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
                     if(metadata) this.buildSongMenu(metadata).then(menu => ui.showContextMenu(e.clientX, e.clientY, menu));
@@ -1200,9 +1221,9 @@ class App {
         wrapper.onclick = () => fileInput.click();
         
         // CSS for input focus
-        document.getElementById('prof-display').addEventListener('focus', function() { this.style.borderColor = 'var(--accent-color)'; });
+        document.getElementById('prof-display').addEventListener('focus', function() { this.style.borderColor = 'var(--accent)'; });
         document.getElementById('prof-display').addEventListener('blur', function() { this.style.borderColor = 'var(--divider)'; });
-        document.getElementById('prof-bio').addEventListener('focus', function() { this.style.borderColor = 'var(--accent-color)'; });
+        document.getElementById('prof-bio').addEventListener('focus', function() { this.style.borderColor = 'var(--accent)'; });
         document.getElementById('prof-bio').addEventListener('blur', function() { this.style.borderColor = 'transparent'; });
         
         fileInput.onchange = (e) => {
@@ -1286,7 +1307,7 @@ class App {
       reqVars.users.forEach(u => {
           const tr = document.createElement('tr');
           const isPending = !u.is_approved && u.role !== 'admin';
-          const statusHtml = u.role === 'admin' ? '<span style="color:var(--accent-color); font-weight:bold;">Admin</span>' : (isPending ? '<span style="color:#f1c40f;">Pending</span>' : '<span style="color:#1db954;">Approved</span>');
+          const statusHtml = u.role === 'admin' ? '<span style="color:var(--accent); font-weight:bold;">Admin</span>' : (isPending ? '<span style="color:#f1c40f;">Pending</span>' : '<span style="color:#1db954;">Approved</span>');
           const actionsHtml = u.role === 'admin' ? '' : (isPending ? `<button class="btn-outline" style="border-color:#1db954; color:#1db954;" onclick="app.adminApproveUser(${u.id})">Approve</button>` : `<button class="btn-outline" style="border-color:#e22134; color:#e22134;" onclick="app.adminRevokeUser(${u.id})">Revoke</button>`);
           
           tr.innerHTML = `

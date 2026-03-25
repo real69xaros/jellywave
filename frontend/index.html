@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>JellyWave</title>
   <link rel="icon" type="image/svg+xml" href="img/logo.svg">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,93 +15,142 @@
 <body>
 
   <!-- App Wrapper -->
-  <div id="app-wrapper" style="display: none;">
-    <!-- Sidebar -->
-    <nav id="sidebar">
-      <div class="logo">
-        <img src="img/logo-glow.svg" alt="JellyWave" style="height: 28px; width: 28px;"> JellyWave
-      </div>
+  <div id="app-wrapper" style="display:none">
+
+    <!-- Hidden sidebar kept for JS compatibility (playlist data, nav events) -->
+    <nav id="sidebar" style="display:none" aria-hidden="true">
       <ul class="nav-links">
         <li data-route="home" class="active"><i class="fa-solid fa-house"></i> Home</li>
         <li data-route="search"><i class="fa-solid fa-magnifying-glass"></i> Search</li>
-        <li data-route="library"><i class="fa-solid fa-book"></i> Your Library</li>
+        <li data-route="library"><i class="fa-solid fa-book"></i> Library</li>
       </ul>
       <div class="playlists-section">
         <div class="section-header">
           <span>PLAYLISTS</span>
           <button id="create-playlist-btn"><i class="fa-solid fa-plus"></i></button>
         </div>
-        <ul class="playlist-links list-none" id="playlist-list">
-          <!-- Playlists injected here -->
-        </ul>
+        <ul class="playlist-links list-none" id="playlist-list"></ul>
       </div>
     </nav>
 
-    <!-- Main Content -->
-    <main id="main-content">
-      <!-- Header -->
+    <!-- Full-Screen Player Overlay (contains all official player control IDs) -->
+    <div id="now-playing-bar">
+      <div class="fp-handle-bar"></div>
+
+      <div class="fp-topbar">
+        <button class="fp-icon-btn" id="fp-down-btn"><i class="fa-solid fa-chevron-down"></i></button>
+        <span class="fp-topbar-title">Now Playing</span>
+        <button class="fp-icon-btn" id="queue-toggle-btn"><i class="fa-solid fa-list"></i></button>
+      </div>
+
+      <div class="fp-artwork-wrap">
+        <img id="np-art" src="" alt="Artwork" style="display:none;">
+        <div class="fp-artwork-placeholder"><i class="fa-solid fa-music"></i></div>
+      </div>
+
+      <div class="fp-info-row">
+        <div class="fp-text">
+          <div id="np-title" class="fp-song-title"></div>
+          <div id="np-artist" class="fp-song-artist"></div>
+        </div>
+        <button id="np-like-btn" class="fp-icon-btn like-btn" style="display:none"><i class="fa-regular fa-heart"></i></button>
+      </div>
+
+      <div class="fp-seek-wrap">
+        <input type="range" class="jelly-slider" id="seek-slider" min="0" value="0" step="1">
+        <div class="fp-times">
+          <span id="time-current">0:00</span>
+          <span id="time-total">0:00</span>
+        </div>
+      </div>
+
+      <div class="fp-controls">
+        <button id="shuffle-btn" class="fp-ctrl-btn secondary"><i class="fa-solid fa-shuffle"></i></button>
+        <button id="prev-btn" class="fp-ctrl-btn"><i class="fa-solid fa-backward-step"></i></button>
+        <button id="play-pause-btn" class="fp-play-btn"><i class="fa-solid fa-play"></i></button>
+        <button id="next-btn" class="fp-ctrl-btn"><i class="fa-solid fa-forward-step"></i></button>
+        <button id="repeat-btn" class="fp-ctrl-btn secondary"><i class="fa-solid fa-repeat"></i></button>
+      </div>
+
+      <div class="fp-volume-row">
+        <i class="fa-solid fa-volume-low"></i>
+        <input type="range" class="jelly-slider vol-slider" id="volume-slider" min="0" max="1" step="0.01" value="1">
+        <i class="fa-solid fa-volume-high"></i>
+      </div>
+
+      <audio id="audio-player" playsinline></audio>
+    </div>
+
+    <!-- Mobile Shell -->
+    <div id="mobile-shell">
+
+      <!-- Top Header -->
       <header id="top-header">
-        <div class="header-left">
-          <button class="nav-btn"><i class="fa-solid fa-chevron-left"></i></button>
-          <button class="nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="header-brand">
+          <img src="img/logo-glow.svg" alt="JellyWave" style="height:22px;width:22px;margin-right:8px;">
+          JellyWave
         </div>
         <div class="header-right">
-          <button id="admin-panel-btn" class="btn-outline" style="display: none;" data-route="admin">Admin Panel</button>
+          <button id="admin-panel-btn" class="btn-outline" style="display:none;" data-route="admin">Admin</button>
           <div class="profile-dropdown">
-            <button id="profile-btn" style="gap:8px;"><img id="profile-avatar" style="display:none; width:24px; height:24px; border-radius:50%; object-fit:cover;"><i id="profile-icon" class="fa-solid fa-user"></i> <span id="profile-name">User</span></button>
+            <button id="profile-btn">
+              <img id="profile-avatar" style="display:none; width:28px; height:28px; border-radius:50%; object-fit:cover;">
+              <i id="profile-icon" class="fa-solid fa-user"></i>
+            </button>
             <div class="dropdown-content" id="profile-menu">
-              <a href="#" data-route="profile">Profile</a>
-              <a href="#" id="logout-btn">Log out</a>
+              <div class="profile-menu-name" id="profile-name"></div>
+              <a href="#" data-route="profile"><i class="fa-solid fa-user" style="width:14px;"></i> Profile</a>
+              <a href="#" id="logout-btn"><i class="fa-solid fa-right-from-bracket" style="width:14px;"></i> Log out</a>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- Views Container -->
-      <div id="views-container">
-        <!-- Dashboard/Views injected here by app.js -->
-      </div>
-    </main>
+      <!-- Page Content -->
+      <div id="views-container"></div>
 
-    <!-- Now Playing Bar -->
-    <footer id="now-playing-bar">
-      <div class="now-playing-left">
-        <img id="np-art" src="" alt="Artwork" style="display: none; width: 60px; height: 60px; border-radius: 4px; object-fit: cover; margin-right: 15px; cursor:pointer;">
-        <div class="np-info">
-          <div id="np-title" class="title"></div>
-          <div id="np-artist" class="artist text-secondary" style="cursor:pointer;"></div>
+      <!-- Mini Player Bar (tap to open full player) -->
+      <div id="mini-player">
+        <div class="mini-inner" id="mini-player-inner">
+          <img id="mini-art" src="" alt="" style="display:none;">
+          <div class="mini-art-placeholder"><i class="fa-solid fa-music"></i></div>
+          <div class="mini-info">
+            <div id="mini-title">Nothing playing</div>
+            <div id="mini-artist"></div>
+          </div>
+          <div class="mini-btns">
+            <button id="mini-play-btn" class="mini-btn"><i class="fa-solid fa-play"></i></button>
+            <button id="mini-next-btn" class="mini-btn"><i class="fa-solid fa-forward-step"></i></button>
+          </div>
         </div>
-        <button id="np-like-btn" class="queue-action-btn" style="margin-left:15px; font-size:18px; display:none;"><i class="fa-regular fa-heart"></i></button>
+        <div class="mini-progress"><div class="mini-progress-fill" id="mini-progress-fill"></div></div>
       </div>
-      
-      <div class="now-playing-center">
-        <div class="player-controls">
-          <button id="shuffle-btn"><i class="fa-solid fa-shuffle"></i></button>
-          <button id="prev-btn"><i class="fa-solid fa-backward-step"></i></button>
-          <button id="play-pause-btn" class="play-circle"><i class="fa-solid fa-play"></i></button>
-          <button id="next-btn"><i class="fa-solid fa-forward-step"></i></button>
-          <button id="repeat-btn"><i class="fa-solid fa-repeat"></i></button>
-        </div>
-        <div class="playback-bar">
-          <span id="time-current">0:00</span>
-          <input type="range" class="jelly-slider" id="seek-slider" min="0" value="0" step="1">
-          <span id="time-total">0:00</span>
-        </div>
-      </div>
-      
-      <div class="now-playing-right" style="justify-content: flex-end;">
-        <button id="queue-toggle-btn" class="queue-action-btn" style="margin-right:20px; font-size:16px;"><i class="fa-solid fa-list"></i></button>
-        <i class="fa-solid fa-volume-high" style="margin-right: 10px; color: var(--text-secondary); font-size:12px;"></i>
-        <input type="range" class="jelly-slider vol-slider" id="volume-slider" min="0" max="1" step="0.01" value="1" style="width: 60px;">
-      </div>
-      <audio id="audio-player"></audio>
-    </footer>
+
+      <!-- Bottom Navigation -->
+      <nav id="mobile-nav">
+        <button class="tab-btn active" data-route="home">
+          <i class="fa-solid fa-house"></i>
+          <span>Home</span>
+        </button>
+        <button class="tab-btn" data-route="search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Search</span>
+        </button>
+        <button class="tab-btn" data-route="library">
+          <i class="fa-solid fa-book-open"></i>
+          <span>Library</span>
+        </button>
+        <button class="tab-btn" data-route="profile">
+          <i class="fa-solid fa-user"></i>
+          <span>Profile</span>
+        </button>
+      </nav>
+    </div>
+
   </div>
 
   <!-- Auth Wrapper -->
-  <div id="auth-wrapper">
-    <!-- Auth screens injected by UI JS -->
-  </div>
+  <div id="auth-wrapper"></div>
 
   <!-- Toasts -->
   <div id="toast-container"></div>
@@ -109,5 +161,6 @@
   <script src="js/player.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/mobile.js"></script>
 </body>
 </html>
