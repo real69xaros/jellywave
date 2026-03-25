@@ -1,34 +1,41 @@
 /* =========================================================
-   JellyWave Mobile — mini player, full player, touch fixes
+   JellyWave Mobile — runs only inside Capacitor (Android)
    ========================================================= */
 
 (function () {
   'use strict';
 
-  // ── Patch ui.showApp to use flex instead of grid ──────────
+  // ── Guard: exit immediately on desktop ────────────────────
+  if (!window.Capacitor) return;
+
+  // ── Mark body as mobile ───────────────────────────────────
+  document.body.classList.add('is-mobile');
+
+  // ── Patch ui.showApp to use block layout (matches mobile CSS) ──
   const _origShowApp = ui.showApp.bind(ui);
   ui.showApp = function () {
-    ui.appWrapper.style.display = 'flex';
+    ui.appWrapper.style.display = 'block';
     ui.authWrapper.style.display = 'none';
   };
 
   // ── Elements ──────────────────────────────────────────────
-  const fullPlayer   = document.getElementById('now-playing-bar');
-  const miniPlayer   = document.getElementById('mini-player');
-  const miniInner    = document.getElementById('mini-player-inner');
-  const miniTitle    = document.getElementById('mini-title');
-  const miniArtist   = document.getElementById('mini-artist');
-  const miniArt      = document.getElementById('mini-art');
+  const fullPlayer         = document.getElementById('now-playing-bar');
+  const miniPlayer         = document.getElementById('mini-player');
+  const miniInner          = document.getElementById('mini-player-inner');
+  const miniTitle          = document.getElementById('mini-title');
+  const miniArtist         = document.getElementById('mini-artist');
+  const miniArt            = document.getElementById('mini-art');
   const miniArtPlaceholder = miniPlayer.querySelector('.mini-art-placeholder');
-  const miniPlayBtn  = document.getElementById('mini-play-btn');
-  const miniNextBtn  = document.getElementById('mini-next-btn');
-  const miniProgress = document.getElementById('mini-progress-fill');
-  const fpDownBtn    = document.getElementById('fp-down-btn');
-  const seekSlider   = document.getElementById('seek-slider');
-  const volSlider    = document.getElementById('volume-slider');
-  const mobileTabs   = document.querySelectorAll('#mobile-nav .tab-btn');
-  const profileBtn   = document.getElementById('profile-btn');
-  const profileMenu  = document.getElementById('profile-menu');
+  const miniPlayBtn        = document.getElementById('mini-play-btn');
+  const miniNextBtn        = document.getElementById('mini-next-btn');
+  const miniProgress       = document.getElementById('mini-progress-fill');
+  const fpDownBtn          = document.getElementById('fp-down-btn');
+  const mobileQueueBtn     = document.getElementById('mobile-queue-btn');
+  const seekSlider         = document.getElementById('seek-slider');
+  const volSlider          = document.getElementById('volume-slider');
+  const mobileTabs         = document.querySelectorAll('#mobile-nav .tab-btn');
+  const profileBtn         = document.getElementById('profile-btn');
+  const profileMenu        = document.getElementById('profile-menu');
 
   // ── Open / Close full player ──────────────────────────────
   function openPlayer() {
@@ -41,17 +48,26 @@
     document.body.style.overflow = '';
   }
 
+  // Tap mini player inner area (not the buttons) to open full player
   miniInner.addEventListener('click', (e) => {
-    // Only open if clicking on info area, not the mini control buttons
     if (!e.target.closest('.mini-btns')) {
       if (player.currentTrack()) openPlayer();
     }
   });
 
-  fpDownBtn.addEventListener('click', closePlayer);
+  // Down button closes the full player
+  if (fpDownBtn) {
+    fpDownBtn.addEventListener('click', closePlayer);
+  }
 
-  // Swipe down on full player to close
+  // Mobile queue button inside player header
+  if (mobileQueueBtn) {
+    mobileQueueBtn.addEventListener('click', () => ui.toggleQueuePanel());
+  }
+
+  // ── Swipe-down gesture to close full player ───────────────
   let touchStartY = 0;
+
   fullPlayer.addEventListener('touchstart', (e) => {
     touchStartY = e.touches[0].clientY;
   }, { passive: true });
@@ -73,7 +89,7 @@
   });
 
   // ── Touch events for seek slider ──────────────────────────
-  // app.js uses mousedown/mouseup which don't fire on touch — fix here
+  // app.js uses mousedown/mouseup which don't fire reliably on touch
   seekSlider.addEventListener('touchstart', () => {
     player.isDragging = true;
   }, { passive: true });
@@ -88,16 +104,13 @@
     seekSlider.style.setProperty('--progress', `${pct}%`);
   }, { passive: true });
 
-  // Volume slider touch
+  // ── Touch events for volume slider ───────────────────────
   volSlider.addEventListener('touchend', () => {
     player.setVolume(parseFloat(volSlider.value));
     volSlider.style.setProperty('--progress', `${volSlider.value * 100}%`);
   }, { passive: true });
 
   // ── Sync mini player with player state ───────────────────
-  // Hook into the existing onStateChange callback after app.js sets it
-  const _origOnStateChange = null;
-
   function syncMiniPlayer(state) {
     // Play/Pause icon
     miniPlayBtn.innerHTML = state.isPlaying
@@ -122,44 +135,31 @@
         miniProgress.style.width = `${pct}%`;
       }
     } else {
-      miniTitle.textContent  = 'Nothing playing';
-      miniArtist.textContent = '';
-      miniArt.style.display  = 'none';
+      miniTitle.textContent   = 'Nothing playing';
+      miniArtist.textContent  = '';
+      miniArt.style.display   = 'none';
       miniArt.dataset.trackId = '';
       miniArtPlaceholder.style.display = 'flex';
       miniProgress.style.width = '0%';
     }
   }
 
-  // Intercept player.onStateChange after app.js sets it
-  // We use a setter on the player object
-  let _appStateChange = null;
-  Object.defineProperty(player, 'onStateChange', {
-    get: () => _appStateChange,
-    set: (fn) => {
-      _appStateChange = fn;
-    }
-  });
-
-  // Override emitState to call both
+  // ── Wrap emitState to also sync the mini player ───────────
+  // We piggyback on emitState so the mini player stays in sync without
+  // using Object.defineProperty — just replace the function.
   const _origEmit = player.emitState.bind(player);
   player.emitState = function () {
-    _origEmit();
-    const state = {
-      isPlaying: player.isPlaying,
-      track: player.currentTrack(),
+    _origEmit(); // calls player.onStateChange → app.updatePlayerUI
+    syncMiniPlayer({
+      isPlaying:   player.isPlaying,
+      track:       player.currentTrack(),
       currentTime: player.audio ? player.audio.currentTime : 0,
-      duration: player.audio ? (player.audio.duration || 0) : 0,
-    };
-    syncMiniPlayer(state);
+      duration:    player.audio ? (player.audio.duration || 0) : 0,
+    });
   };
 
   // ── Bottom tab active state ───────────────────────────────
-  // app.js uses navigate() which updates data-route items in sidebar.
-  // We mirror active state to the mobile tabs.
-  const _origNavigate = typeof app !== 'undefined' ? null : null;
-
-  // Watch for sidebar nav-link active class changes via MutationObserver
+  // Mirror sidebar nav-link active class changes to the mobile tabs.
   const sidebarLinks = document.querySelectorAll('#sidebar .nav-links li[data-route]');
 
   function syncTabActive() {
@@ -176,10 +176,11 @@
   const navObserver = new MutationObserver(syncTabActive);
   sidebarLinks.forEach(li => navObserver.observe(li, { attributes: true, attributeFilter: ['class'] }));
 
-  // Mobile tab clicks also trigger navigation via data-route (app.js bindEvents picks these up)
-  // No extra wiring needed — app.js querySelectorAll('[data-route]') includes these buttons.
+  // Mobile tab clicks also trigger navigation via data-route.
+  // app.js bindEvents already queries [data-route] on the whole document,
+  // so the mobile nav buttons are covered — no extra wiring needed.
 
-  // ── Profile dropdown (mobile tap to toggle) ───────────────
+  // ── Profile dropdown (tap to toggle) ─────────────────────
   profileBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     profileMenu.classList.toggle('show');
@@ -189,11 +190,10 @@
     profileMenu.classList.remove('show');
   });
 
-  // ── Initial mini player state ────────────────────────────
+  // ── Initial mini player state ─────────────────────────────
   syncMiniPlayer({ isPlaying: false, track: null, currentTime: 0, duration: 0 });
 
-  // ── Android auto-update check ────────────────────────────
-  // Only runs inside the Capacitor Android WebView
+  // ── Android auto-update check ─────────────────────────────
   async function checkForAndroidUpdate() {
     if (!window.Capacitor) return;
 
@@ -201,7 +201,7 @@
       const AppPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
       if (!AppPlugin) return;
 
-      // Get the installed APK's versionName from AndroidManifest
+      // Get installed APK version from AndroidManifest
       const info = await AppPlugin.getInfo();
       const installedVersion = info.version; // e.g. "1.0.0"
 
@@ -255,7 +255,7 @@
       </button>
       <button id="update-dismiss-btn"
         style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#8e8e93;background:none;border:none;cursor:pointer;font-size:20px;flex-shrink:0;">
-        ✕
+        &#x2715;
       </button>
     `;
     document.body.appendChild(banner);

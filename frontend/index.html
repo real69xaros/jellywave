@@ -17,8 +17,12 @@
   <!-- App Wrapper -->
   <div id="app-wrapper" style="display:none">
 
-    <!-- Hidden sidebar kept for JS compatibility (playlist data, nav events) -->
-    <nav id="sidebar" style="display:none" aria-hidden="true">
+    <!-- Sidebar (desktop) -->
+    <nav id="sidebar">
+      <div class="sidebar-logo">
+        <img src="img/logo-glow.svg" alt="JellyWave" style="height:28px;width:28px;">
+        <span>JellyWave</span>
+      </div>
       <ul class="nav-links">
         <li data-route="home" class="active"><i class="fa-solid fa-house"></i> Home</li>
         <li data-route="search"><i class="fa-solid fa-magnifying-glass"></i> Search</li>
@@ -33,62 +37,19 @@
       </div>
     </nav>
 
-    <!-- Full-Screen Player Overlay (contains all official player control IDs) -->
-    <div id="now-playing-bar">
-      <div class="fp-handle-bar"></div>
-
-      <div class="fp-topbar">
-        <button class="fp-icon-btn" id="fp-down-btn"><i class="fa-solid fa-chevron-down"></i></button>
-        <span class="fp-topbar-title">Now Playing</span>
-        <button class="fp-icon-btn" id="queue-toggle-btn"><i class="fa-solid fa-list"></i></button>
-      </div>
-
-      <div class="fp-artwork-wrap">
-        <img id="np-art" src="" alt="Artwork" style="display:none;">
-        <div class="fp-artwork-placeholder"><i class="fa-solid fa-music"></i></div>
-      </div>
-
-      <div class="fp-info-row">
-        <div class="fp-text">
-          <div id="np-title" class="fp-song-title"></div>
-          <div id="np-artist" class="fp-song-artist"></div>
-        </div>
-        <button id="np-like-btn" class="fp-icon-btn like-btn" style="display:none"><i class="fa-regular fa-heart"></i></button>
-      </div>
-
-      <div class="fp-seek-wrap">
-        <input type="range" class="jelly-slider" id="seek-slider" min="0" value="0" step="1">
-        <div class="fp-times">
-          <span id="time-current">0:00</span>
-          <span id="time-total">0:00</span>
-        </div>
-      </div>
-
-      <div class="fp-controls">
-        <button id="shuffle-btn" class="fp-ctrl-btn secondary"><i class="fa-solid fa-shuffle"></i></button>
-        <button id="prev-btn" class="fp-ctrl-btn"><i class="fa-solid fa-backward-step"></i></button>
-        <button id="play-pause-btn" class="fp-play-btn"><i class="fa-solid fa-play"></i></button>
-        <button id="next-btn" class="fp-ctrl-btn"><i class="fa-solid fa-forward-step"></i></button>
-        <button id="repeat-btn" class="fp-ctrl-btn secondary"><i class="fa-solid fa-repeat"></i></button>
-      </div>
-
-      <div class="fp-volume-row">
-        <i class="fa-solid fa-volume-low"></i>
-        <input type="range" class="jelly-slider vol-slider" id="volume-slider" min="0" max="1" step="0.01" value="1">
-        <i class="fa-solid fa-volume-high"></i>
-      </div>
-
-      <audio id="audio-player" playsinline></audio>
-    </div>
-
-    <!-- Mobile Shell -->
-    <div id="mobile-shell">
+    <!-- Main Content -->
+    <div id="main-content">
 
       <!-- Top Header -->
       <header id="top-header">
-        <div class="header-brand">
-          <img src="img/logo-glow.svg" alt="JellyWave" style="height:22px;width:22px;margin-right:8px;">
-          JellyWave
+        <div class="header-left">
+          <button class="nav-back-btn" id="back-btn"><i class="fa-solid fa-chevron-left"></i></button>
+          <button class="nav-back-btn" id="fwd-btn"><i class="fa-solid fa-chevron-right"></i></button>
+          <!-- Mobile brand (shown only on mobile) -->
+          <div class="header-brand mobile-only" style="display:none;">
+            <img src="img/logo-glow.svg" alt="JellyWave" style="height:22px;width:22px;margin-right:8px;">
+            JellyWave
+          </div>
         </div>
         <div class="header-right">
           <button id="admin-panel-btn" class="btn-outline" style="display:none;" data-route="admin">Admin</button>
@@ -109,45 +70,93 @@
       <!-- Page Content -->
       <div id="views-container"></div>
 
-      <!-- Mini Player Bar (tap to open full player) -->
-      <div id="mini-player">
-        <div class="mini-inner" id="mini-player-inner">
-          <img id="mini-art" src="" alt="" style="display:none;">
-          <div class="mini-art-placeholder"><i class="fa-solid fa-music"></i></div>
-          <div class="mini-info">
-            <div id="mini-title">Nothing playing</div>
-            <div id="mini-artist"></div>
-          </div>
-          <div class="mini-btns">
-            <button id="mini-play-btn" class="mini-btn"><i class="fa-solid fa-play"></i></button>
-            <button id="mini-next-btn" class="mini-btn"><i class="fa-solid fa-forward-step"></i></button>
-          </div>
-        </div>
-        <div class="mini-progress"><div class="mini-progress-fill" id="mini-progress-fill"></div></div>
+    </div><!-- /#main-content -->
+
+    <!-- Now Playing Bar (desktop footer / mobile full-screen overlay) -->
+    <div id="now-playing-bar">
+
+      <!-- Mobile-only header inside the player overlay -->
+      <div class="now-playing-mobile-header mobile-only" style="display:none;">
+        <button class="fp-icon-btn" id="fp-down-btn"><i class="fa-solid fa-chevron-down"></i></button>
+        <span class="fp-topbar-title">Now Playing</span>
+        <button class="fp-icon-btn" id="mobile-queue-btn"><i class="fa-solid fa-list"></i></button>
       </div>
 
-      <!-- Bottom Navigation -->
-      <nav id="mobile-nav">
-        <button class="tab-btn active" data-route="home">
-          <i class="fa-solid fa-house"></i>
-          <span>Home</span>
-        </button>
-        <button class="tab-btn" data-route="search">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <span>Search</span>
-        </button>
-        <button class="tab-btn" data-route="library">
-          <i class="fa-solid fa-book-open"></i>
-          <span>Library</span>
-        </button>
-        <button class="tab-btn" data-route="profile">
-          <i class="fa-solid fa-user"></i>
-          <span>Profile</span>
-        </button>
-      </nav>
+      <!-- Desktop: three-column layout -->
+      <div class="now-playing-left">
+        <img id="np-art" src="" alt="Artwork" style="display:none;">
+        <div class="np-info">
+          <div id="np-title"></div>
+          <div id="np-artist"></div>
+        </div>
+        <button id="np-like-btn" class="np-like-btn" style="display:none"><i class="fa-regular fa-heart"></i></button>
+      </div>
+
+      <div class="now-playing-center">
+        <div class="player-controls">
+          <button id="shuffle-btn" class="ctrl-btn secondary"><i class="fa-solid fa-shuffle"></i></button>
+          <button id="prev-btn" class="ctrl-btn"><i class="fa-solid fa-backward-step"></i></button>
+          <button id="play-pause-btn" class="play-btn"><i class="fa-solid fa-play"></i></button>
+          <button id="next-btn" class="ctrl-btn"><i class="fa-solid fa-forward-step"></i></button>
+          <button id="repeat-btn" class="ctrl-btn secondary"><i class="fa-solid fa-repeat"></i></button>
+        </div>
+        <div class="playback-bar">
+          <span id="time-current">0:00</span>
+          <input type="range" class="jelly-slider" id="seek-slider" min="0" value="0" step="1">
+          <span id="time-total">0:00</span>
+        </div>
+      </div>
+
+      <div class="now-playing-right">
+        <button id="queue-toggle-btn" class="ctrl-btn secondary"><i class="fa-solid fa-list"></i></button>
+        <i class="fa-solid fa-volume-low"></i>
+        <input type="range" class="jelly-slider vol-slider" id="volume-slider" min="0" max="1" step="0.01" value="1">
+      </div>
+
+      <audio id="audio-player" playsinline></audio>
+    </div><!-- /#now-playing-bar -->
+
+    <!-- Mobile-only: Mini Player Bar (tap to open full player) -->
+    <div id="mini-player" class="mobile-only" style="display:none;">
+      <div class="mini-inner" id="mini-player-inner">
+        <img id="mini-art" src="" alt="" style="display:none;">
+        <div class="mini-art-placeholder"><i class="fa-solid fa-music"></i></div>
+        <div class="mini-info">
+          <div id="mini-title">Nothing playing</div>
+          <div id="mini-artist"></div>
+        </div>
+        <div class="mini-btns">
+          <button id="mini-play-btn" class="mini-btn"><i class="fa-solid fa-play"></i></button>
+          <button id="mini-next-btn" class="mini-btn"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+      </div>
+      <div class="mini-progress"><div class="mini-progress-fill" id="mini-progress-fill"></div></div>
     </div>
 
-  </div>
+    <!-- Mobile-only: Bottom Navigation -->
+    <nav id="mobile-nav" class="mobile-only" style="display:none;">
+      <button class="tab-btn active" data-route="home">
+        <i class="fa-solid fa-house"></i>
+        <span>Home</span>
+      </button>
+      <button class="tab-btn" data-route="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span>Search</span>
+      </button>
+      <button class="tab-btn" data-route="library">
+        <i class="fa-solid fa-book-open"></i>
+        <span>Library</span>
+      </button>
+      <button class="tab-btn" data-route="profile">
+        <i class="fa-solid fa-user"></i>
+        <span>Profile</span>
+      </button>
+    </nav>
+
+    <!-- Hidden element used by mobile.js to close player -->
+    <button id="fp-down-btn-desktop" style="display:none;" aria-hidden="true"></button>
+
+  </div><!-- /#app-wrapper -->
 
   <!-- Auth Wrapper -->
   <div id="auth-wrapper"></div>
