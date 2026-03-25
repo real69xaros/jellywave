@@ -36,16 +36,27 @@ class App {
       const auth = await api.checkAuth();
       if (auth.authenticated) {
         this.user = auth.user;
+        // Cache user so app works offline on next launch
+        localStorage.setItem('jw_cached_user', JSON.stringify(auth.user));
         if (!this.user.is_approved && this.user.role !== 'admin') {
           this.showAccessDenied();
         } else {
           this.startMainApp();
         }
       } else {
+        localStorage.removeItem('jw_cached_user');
         this.showLogin();
       }
     } catch(e) {
-      this.showLogin();
+      // Offline or server unreachable — use cached credentials
+      const cachedUser = localStorage.getItem('jw_cached_user');
+      const token = localStorage.getItem('jw_token');
+      if (cachedUser && token) {
+        this.user = JSON.parse(cachedUser);
+        this.startMainApp();
+      } else {
+        this.showLogin();
+      }
     }
   }
 

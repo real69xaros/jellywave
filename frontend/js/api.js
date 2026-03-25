@@ -60,7 +60,11 @@ class ApiClient {
       if(artistId) return this.req(`/catalog/songs?artistId=${artistId}`, 'GET', null, { cache: true });
       return this.req('/catalog/songs', 'GET', null, { cache: true });
   }
-  getStreamUrl(itemId) { return `${API_BASE}/catalog/stream/${itemId}`; }
+  getStreamUrl(itemId) {
+    const token = localStorage.getItem('jw_token');
+    const q = token ? `?token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE}/catalog/stream/${itemId}${q}`;
+  }
   async getDirectStreamUrl(itemId) {
     if (!IS_ELECTRON) return this.getStreamUrl(itemId);
     if (this._streamUrlCache.has(itemId)) return this._streamUrlCache.get(itemId);

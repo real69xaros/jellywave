@@ -64,8 +64,8 @@ async function requireApproved(req, res, next) {
     return next();
   }
   const authHeader = req.headers['authorization'];
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
+  const token = (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null) || req.query.token;
+  if (token) {
     try {
       const { initDB } = require('./db');
       const db = await initDB();
