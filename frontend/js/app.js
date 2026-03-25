@@ -32,31 +32,36 @@ class App {
 
   async init() {
     this.bindEvents();
+
+    // Start the app immediately from cache — don't block on network
+    const cachedUser = localStorage.getItem('jw_cached_user');
+    const token = localStorage.getItem('jw_token');
+    if (cachedUser && token) {
+      this.user = JSON.parse(cachedUser);
+      this.startMainApp();
+    }
+
+    // Verify auth in background; update user data or kick to login if session expired
     try {
       const auth = await api.checkAuth();
       if (auth.authenticated) {
         this.user = auth.user;
-        // Cache user so app works offline on next launch
         localStorage.setItem('jw_cached_user', JSON.stringify(auth.user));
         if (!this.user.is_approved && this.user.role !== 'admin') {
           this.showAccessDenied();
-        } else {
+        } else if (!cachedUser) {
+          // First load — wasn't already started from cache
           this.startMainApp();
         }
       } else {
         localStorage.removeItem('jw_cached_user');
-        this.showLogin();
+        localStorage.removeItem('jw_token');
+        if (!cachedUser) this.showLogin();
+        // If was already showing app from cache: leave it running until user action
       }
     } catch(e) {
-      // Offline or server unreachable — use cached credentials
-      const cachedUser = localStorage.getItem('jw_cached_user');
-      const token = localStorage.getItem('jw_token');
-      if (cachedUser && token) {
-        this.user = JSON.parse(cachedUser);
-        this.startMainApp();
-      } else {
-        this.showLogin();
-      }
+      // Server unreachable — already started from cache above (or showing login if no cache)
+      if (!cachedUser) this.showLogin();
     }
   }
 
@@ -324,19 +329,20 @@ class App {
 
   async startMainApp() {
     ui.showApp();
-    
-    try {
-        const profileInfo = await api.req('/profile');
-        this.updateProfileHeader(profileInfo);
-    } catch(e) {}
-    
+
     if (this.user.role === 'admin') {
       document.getElementById('admin-panel-btn').style.display = 'block';
     }
 
-    ui.toast('Initializing catalog...', 'success');
-    await this.refreshUserData();
+    // Navigate immediately — don't block on network calls
     this.navigate('home');
+
+    // Load profile and user data in parallel in the background
+    Promise.all([
+      api.req('/profile').then(p => this.updateProfileHeader(p)).catch(() => {}),
+      api.getFavorites().then(f => { this.favorites = new Set(f.favorites.map(x => x.item_id)); }).catch(() => {}),
+      api.getPlaylists().then(p => { this.playlists = p.playlists || []; this.renderSidebarPlaylists(); }).catch(() => {})
+    ]);
   }
 
   updateProfileHeader(profile) {
@@ -356,9 +362,8 @@ class App {
 
   async refreshUserData() {
       try {
-          const favs = await api.getFavorites();
+          const [favs, pls] = await Promise.all([api.getFavorites(), api.getPlaylists()]);
           this.favorites = new Set(favs.favorites.map(f => f.item_id));
-          const pls = await api.getPlaylists();
           this.playlists = pls.playlists || [];
           this.renderSidebarPlaylists();
       } catch(e) {}
@@ -465,18 +470,19 @@ class App {
   async downloadTrack(song) {
      ui.toast(`Downloading ${song.Name}...`);
      try {
-         const res = await fetch(await api.getDirectStreamUrl(song.Id), { credentials: 'include' });
+         const streamUrl = await api.getDirectStreamUrl(song.Id);
+         const res = await fetch(streamUrl);
          if (!res.ok) throw new Error(`Stream error: ${res.status}`);
          const blob = await res.blob();
          await storage.put('blobs', song.Id, blob);
 
-         const artRes = await fetch(api.getArtworkUrl(song.Id), { credentials: 'include' });
+         const artRes = await fetch(api.getArtworkUrl(song.Id));
          if (artRes.ok) {
             const artBlob = await artRes.blob();
             await storage.put('artwork', song.Id, artBlob);
          }
-         
-         await storage.put('tracks', null, { ...song, id: song.Id });
+
+         await storage.put('tracks', song.Id, { ...song, id: song.Id });
          ui.toast(`Downloaded ${song.Name}`, 'success');
      } catch(e) {
          ui.toast(`Failed to download ${song.Name}`, 'error');
@@ -569,8 +575,10 @@ class App {
   }
 
   async downloadPlaylist(playlist) {
+      ui.toast(`Starting download: ${playlist.name}...`);
+      let downloaded = 0;
+      let failed = 0;
       try {
-          ui.toast(`Starting download: ${playlist.name}...`);
           const req = await api.getPlaylistTracks(playlist.id);
           const tracks = req.tracks || [];
           if(!tracks.length) return ui.toast('Playlist is empty.');
@@ -580,49 +588,48 @@ class App {
           const metaMap = {};
           (metaReq.items || []).forEach(m => metaMap[m.Id] = m);
 
-          let downloaded = 0;
           for (const t of tracks) {
               const metadata = metaMap[t.track_id];
               if(!metadata) continue;
 
               const isCached = await storage.isDownloaded(metadata.Id);
-              if(!isCached) {
-                  ui.toast(`Downloading: ${metadata.Name}...`, 'info');
+              if(isCached) { downloaded++; continue; }
+
+              try {
+                  ui.toast(`Downloading: ${metadata.Name} (${downloaded + 1}/${tracks.length})`, 'info');
                   const streamUrl = await api.getDirectStreamUrl(metadata.Id);
-                  const fetchOpts = { credentials: 'include' };
-                  const token = localStorage.getItem('jw_token');
-                  if (token) fetchOpts.headers = { 'Authorization': `Bearer ${token}` };
-                  const resp = await fetch(streamUrl, fetchOpts);
-                  if (!resp.ok) throw new Error(`Stream error: ${resp.status}`);
+                  const resp = await fetch(streamUrl);
+                  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                   const blob = await resp.blob();
-                  
-                  // Store metadata (ensure 'id' field matches IndexedDB keyPath)
+
                   await storage.put('tracks', metadata.Id, { ...metadata, id: metadata.Id });
-                  // Store blob
                   await storage.put('blobs', metadata.Id, blob);
-                  
-                  // Store artwork if exists
+
                   if(metadata.ImageTags?.Primary) {
-                      const artUrl = api.getArtworkUrl(metadata.Id);
-                      const artResp = await fetch(artUrl, fetchOpts);
+                      const artResp = await fetch(api.getArtworkUrl(metadata.Id));
                       if (artResp.ok) {
-                          const artBlob = await artResp.blob();
-                          await storage.put('artwork', metadata.Id, artBlob);
+                          await storage.put('artwork', metadata.Id, await artResp.blob());
                       }
                   }
+                  downloaded++;
+              } catch(trackErr) {
+                  console.warn(`Failed track ${metadata.Name}:`, trackErr);
+                  failed++;
               }
-              downloaded++;
           }
-
-          localStorage.setItem(`pl_downloaded_${playlist.id}`, 'true');
-          ui.toast(`Finished downloading ${playlist.name} (${downloaded} tracks).`);
-          this.renderSidebarPlaylists();
-          const currentHeader = document.getElementById('pl-header-download-btn');
-          if(currentHeader) currentHeader.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
       } catch(e) {
-          console.error(e);
-          ui.toast('Failed to download playlist fully.', 'error');
+          console.error('Download playlist error:', e);
+          if(downloaded === 0) return ui.toast('Download failed: ' + e.message, 'error');
       }
+
+      localStorage.setItem(`pl_downloaded_${playlist.id}`, 'true');
+      const msg = failed > 0
+          ? `Downloaded ${downloaded} tracks (${failed} failed)`
+          : `Downloaded ${playlist.name} (${downloaded} tracks)`;
+      ui.toast(msg, failed > 0 ? 'info' : 'success');
+      this.renderSidebarPlaylists();
+      const currentHeader = document.getElementById('pl-header-download-btn');
+      if(currentHeader) currentHeader.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
   }
 
   async renderHome() {

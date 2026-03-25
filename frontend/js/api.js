@@ -77,7 +77,11 @@ class ApiClient {
       return this.getStreamUrl(itemId);
     }
   }
-  getArtworkUrl(itemId) { return `${API_BASE}/catalog/artwork/${itemId}`; }
+  getArtworkUrl(itemId) {
+    const token = localStorage.getItem('jw_token');
+    const q = token ? `?token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE}/catalog/artwork/${itemId}${q}`;
+  }
   
   async getOnlineArtwork(term) {
       if(!term) return null;

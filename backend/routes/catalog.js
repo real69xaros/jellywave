@@ -4,13 +4,6 @@ const axios = require('axios');
 const catalogService = require('../jellyfinService'); // Retained internal module name, acts as CatalogService
 const streamTokens = require('../streamTokens');
 
-function requireAuth(req, res, next) {
-  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-  next();
-}
-
-router.use(requireAuth);
-
 router.get('/artists', async (req, res) => {
   const artists = await catalogService.getArtists();
   res.json({ artists });

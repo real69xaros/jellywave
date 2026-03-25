@@ -55,6 +55,10 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
+// In-process token cache: avoids a DB hit on every streamed request
+const _tokenCache = new Map();
+setInterval(() => _tokenCache.clear(), 5 * 60 * 1000); // flush every 5 min
+
 // Approve check for data routes — supports both session cookies and Bearer tokens
 async function requireApproved(req, res, next) {
   if (req.session.user) {
@@ -66,6 +70,15 @@ async function requireApproved(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null) || req.query.token;
   if (token) {
+    // Serve from in-process cache when available
+    if (_tokenCache.has(token)) {
+      const row = _tokenCache.get(token);
+      if (!row.is_approved && row.role !== 'admin') {
+        return res.status(403).json({ error: 'Account pending approval' });
+      }
+      req.session.user = row;
+      return next();
+    }
     try {
       const { initDB } = require('./db');
       const db = await initDB();
@@ -77,6 +90,7 @@ async function requireApproved(req, res, next) {
         if (!row.is_approved && row.role !== 'admin') {
           return res.status(403).json({ error: 'Account pending approval' });
         }
+        _tokenCache.set(token, row);
         req.session.user = row; // make downstream routes work unchanged
         return next();
       }
