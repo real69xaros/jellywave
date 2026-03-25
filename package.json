@@ -12,6 +12,7 @@
     "build:android": "npx cap copy android && npx cap open android"
   },
   "dependencies": {
+    "electron-updater": "^6.3.4",
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "axios": "^1.6.8",
@@ -36,6 +37,11 @@
       "output": "homepage/releases"
     },
     "npmRebuild": false,
+    "publish": {
+      "provider": "github",
+      "owner": "real69xaros",
+      "repo": "jellywave"
+    },
     "linux": {
       "target": ["AppImage"]
     },

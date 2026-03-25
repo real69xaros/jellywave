@@ -1,5 +1,6 @@
-const { app, BrowserWindow, shell, Menu, protocol, net, session } = require('electron');
+const { app, BrowserWindow, shell, Menu, protocol, net, session, dialog } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 
 // Must be called before app is ready
 protocol.registerSchemesAsPrivileged([
@@ -62,6 +63,33 @@ async function createWindow() {
 }
 
 app.whenReady().then(createWindow);
+
+// Auto-updater (only runs in packaged builds, not during dev)
+app.on('ready', () => {
+  if (!app.isPackaged) return;
+
+  autoUpdater.checkForUpdates();
+
+  autoUpdater.on('update-available', () => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: 'A new version of JellyWave is downloading in the background.',
+      buttons: ['OK']
+    });
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: 'JellyWave has been updated. Restart to apply the new version.',
+      buttons: ['Restart Now', 'Later']
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
