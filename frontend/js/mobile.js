@@ -192,4 +192,85 @@
   // ── Initial mini player state ────────────────────────────
   syncMiniPlayer({ isPlaying: false, track: null, currentTime: 0, duration: 0 });
 
+  // ── Android auto-update check ────────────────────────────
+  // Only runs inside the Capacitor Android WebView
+  async function checkForAndroidUpdate() {
+    if (!window.Capacitor) return;
+
+    try {
+      const AppPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+      if (!AppPlugin) return;
+
+      // Get the installed APK's versionName from AndroidManifest
+      const info = await AppPlugin.getInfo();
+      const installedVersion = info.version; // e.g. "1.0.0"
+
+      // Fetch latest GitHub release
+      const res = await fetch('https://api.github.com/repos/real69xaros/jellywave/releases/latest');
+      if (!res.ok) return;
+      const release = await res.json();
+      if (!release.tag_name) return;
+
+      const latestVersion = release.tag_name.replace(/^v/, ''); // "1.0.1"
+
+      if (semverGreater(latestVersion, installedVersion)) {
+        const apkAsset = release.assets.find(a => a.name.endsWith('.apk'));
+        const downloadUrl = apkAsset ? apkAsset.browser_download_url : release.html_url;
+        showUpdateBanner(latestVersion, downloadUrl);
+      }
+    } catch (e) {
+      // Silently fail — update check is non-critical
+    }
+  }
+
+  function semverGreater(a, b) {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((pa[i] || 0) > (pb[i] || 0)) return true;
+      if ((pa[i] || 0) < (pb[i] || 0)) return false;
+    }
+    return false;
+  }
+
+  function showUpdateBanner(version, downloadUrl) {
+    if (document.getElementById('update-banner')) return; // already shown
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.style.cssText = [
+      'position:fixed', 'bottom:0', 'left:0', 'right:0', 'z-index:9998',
+      'background:#1c1c1e', 'border-top:1px solid rgba(255,255,255,0.1)',
+      'padding:14px 16px', 'display:flex', 'align-items:center', 'gap:12px',
+      'box-shadow:0 -4px 24px rgba(0,0,0,0.6)',
+      'padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))'
+    ].join(';');
+    banner.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:600;color:#fff;">Update Available</div>
+        <div style="font-size:12px;color:#8e8e93;margin-top:2px;">JellyWave v${version} is ready</div>
+      </div>
+      <button id="update-download-btn"
+        style="padding:10px 18px;background:#FA233B;color:#fff;border-radius:8px;font-size:14px;font-weight:600;border:none;cursor:pointer;white-space:nowrap;">
+        Download
+      </button>
+      <button id="update-dismiss-btn"
+        style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#8e8e93;background:none;border:none;cursor:pointer;font-size:20px;flex-shrink:0;">
+        ✕
+      </button>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('update-download-btn').addEventListener('click', () => {
+      // '_system' opens in the Android default browser so the APK can download
+      window.open(downloadUrl, '_system');
+    });
+
+    document.getElementById('update-dismiss-btn').addEventListener('click', () => {
+      banner.remove();
+    });
+  }
+
+  // Run update check 3 seconds after launch (let app finish loading first)
+  setTimeout(checkForAndroidUpdate, 3000);
+
 })();
