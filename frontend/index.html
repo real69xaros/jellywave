@@ -13,6 +13,12 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<script>
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent) || !!window.Capacitor) {
+    document.documentElement.classList.add('is-mobile');
+    document.body.classList.add('is-mobile');
+  }
+</script>
 
   <!-- App Wrapper -->
   <div id="app-wrapper" style="display:none">

@@ -156,17 +156,80 @@
     }
   }
 
-  // Wrap emitState to also sync the mini player
+  // ── Android Native Media Notification ────────────────────
+  const MusicControls = isCapacitor
+    ? (window.Capacitor?.Plugins?.CapacitorMusicControls || null)
+    : null;
+
+  let _mcLastTrackId  = null;
+  let _mcElapsedTimer = null;
+
+  function mcStartElapsedTimer() {
+    if (_mcElapsedTimer) return;
+    _mcElapsedTimer = setInterval(() => {
+      if (!player.audio || !MusicControls) return;
+      try { MusicControls.updateElapsed({ elapsed: player.audio.currentTime || 0, isPlaying: player.isPlaying }); } catch (e) {}
+    }, 1000);
+  }
+
+  function mcStopElapsedTimer() {
+    if (_mcElapsedTimer) { clearInterval(_mcElapsedTimer); _mcElapsedTimer = null; }
+  }
+
+  // Wrap emitState to sync mini player AND drive MC notification
   const _origEmit = player.emitState.bind(player);
   player.emitState = function () {
     _origEmit();
-    syncMiniPlayer({
+    const state = {
       isPlaying:   player.isPlaying,
       track:       player.currentTrack(),
       currentTime: player.audio ? player.audio.currentTime : 0,
       duration:    player.audio ? (player.audio.duration || 0) : 0,
-    });
+    };
+    syncMiniPlayer(state);
+
+    if (MusicControls) {
+      if (!state.track) {
+        mcStopElapsedTimer();
+        MusicControls.destroy().catch(() => {});
+        _mcLastTrackId = null;
+      } else if (state.track.Id !== _mcLastTrackId) {
+        _mcLastTrackId = state.track.Id;
+        MusicControls.create({
+          track:       state.track.Name || '',
+          artist:      (state.track.Artists && state.track.Artists.join(', ')) || state.track.AlbumArtist || '',
+          album:       state.track.Album || '',
+          cover:       api.getArtworkUrl(state.track.Id),
+          isPlaying:   state.isPlaying,
+          hasPrev:     true,
+          hasNext:     true,
+          hasClose:    false,
+          dismissable: false,
+          duration:    state.duration,
+          elapsed:     state.currentTime,
+        }).catch(e => console.warn('MusicControls.create:', e));
+        state.isPlaying ? mcStartElapsedTimer() : mcStopElapsedTimer();
+      } else {
+        MusicControls.updateIsPlaying({ isPlaying: state.isPlaying }).catch(() => {});
+        state.isPlaying ? mcStartElapsedTimer() : mcStopElapsedTimer();
+      }
+    }
   };
+
+  // Lockscreen / notification button events
+  if (MusicControls) {
+    document.addEventListener('controlsNotification', (e) => {
+      const msg = (e.detail && e.detail.message) || '';
+      switch (msg) {
+        case 'music-controls-next':              player.next(); break;
+        case 'music-controls-previous':          player.prev(); break;
+        case 'music-controls-toggle-play-pause': player.togglePlay(); break;
+        case 'music-controls-play':              if (!player.isPlaying) player.togglePlay(); break;
+        case 'music-controls-pause':             if (player.isPlaying)  player.togglePlay(); break;
+        case 'music-controls-destroy':           mcStopElapsedTimer(); break;
+      }
+    });
+  }
 
   // ── Bottom tab active state ───────────────────────────────
   const sidebarLinks = document.querySelectorAll('#sidebar .nav-links li[data-route]');
