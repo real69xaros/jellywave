@@ -1,17 +1,19 @@
 /* =========================================================
-   JellyWave Mobile — runs only inside Capacitor (Android)
+   JellyWave Mobile — Capacitor (Android) enhancements
    ========================================================= */
 
 (function () {
   'use strict';
 
-  // ── Guard: exit immediately on desktop ────────────────────
-  if (!window.Capacitor) return;
+  // Guard: only run on Android/Capacitor or mobile UA
+  const isCapacitor = !!window.Capacitor;
+  const isMobileUA  = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (!isCapacitor && !isMobileUA) return;
 
-  // ── Mark body as mobile ───────────────────────────────────
+  // Mark body as mobile immediately so CSS applies before first render
   document.body.classList.add('is-mobile');
 
-  // ── Patch ui.showApp to use block layout (matches mobile CSS) ──
+  // Patch ui.showApp to use block layout
   const _origShowApp = ui.showApp.bind(ui);
   ui.showApp = function () {
     ui.appWrapper.style.display = 'block';
@@ -26,6 +28,7 @@
   const miniArtist         = document.getElementById('mini-artist');
   const miniArt            = document.getElementById('mini-art');
   const miniArtPlaceholder = miniPlayer.querySelector('.mini-art-placeholder');
+  const miniPrevBtn        = document.getElementById('mini-prev-btn');
   const miniPlayBtn        = document.getElementById('mini-play-btn');
   const miniNextBtn        = document.getElementById('mini-next-btn');
   const miniProgress       = document.getElementById('mini-progress-fill');
@@ -36,11 +39,16 @@
   const mobileTabs         = document.querySelectorAll('#mobile-nav .tab-btn');
   const profileBtn         = document.getElementById('profile-btn');
   const profileMenu        = document.getElementById('profile-menu');
+  const sleepTimerBtn      = document.getElementById('sleep-timer-btn');
+  const sleepTimerSheet    = document.getElementById('sleep-timer-sheet');
+  const sleepTimerCancel   = document.getElementById('sleep-timer-cancel');
+  const contextBackdrop    = document.getElementById('context-backdrop');
 
   // ── Open / Close full player ──────────────────────────────
   function openPlayer() {
     fullPlayer.classList.add('open');
     document.body.style.overflow = 'hidden';
+    if (navigator.vibrate) navigator.vibrate(8);
   }
 
   function closePlayer() {
@@ -48,48 +56,54 @@
     document.body.style.overflow = '';
   }
 
-  // Tap mini player inner area (not the buttons) to open full player
+  // Tap mini player body (not buttons) → open full player
   miniInner.addEventListener('click', (e) => {
     if (!e.target.closest('.mini-btns')) {
       if (player.currentTrack()) openPlayer();
     }
   });
 
-  // Down button closes the full player
-  if (fpDownBtn) {
-    fpDownBtn.addEventListener('click', closePlayer);
-  }
+  if (fpDownBtn) fpDownBtn.addEventListener('click', closePlayer);
+  if (mobileQueueBtn) mobileQueueBtn.addEventListener('click', () => ui.toggleQueuePanel());
 
-  // Mobile queue button inside player header
-  if (mobileQueueBtn) {
-    mobileQueueBtn.addEventListener('click', () => ui.toggleQueuePanel());
-  }
-
-  // ── Swipe-down gesture to close full player ───────────────
+  // ── Swipe-down gesture on full player ────────────────────
   let touchStartY = 0;
+  let touchStartX = 0;
 
   fullPlayer.addEventListener('touchstart', (e) => {
     touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
   }, { passive: true });
 
   fullPlayer.addEventListener('touchend', (e) => {
     const dy = e.changedTouches[0].clientY - touchStartY;
-    if (dy > 80) closePlayer();
+    const dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
+    // Only swipe down if mostly vertical
+    if (dy > 80 && dx < 60) closePlayer();
   }, { passive: true });
 
   // ── Mini player buttons ───────────────────────────────────
+  if (miniPrevBtn) {
+    miniPrevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.prev();
+      if (navigator.vibrate) navigator.vibrate(8);
+    });
+  }
+
   miniPlayBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     player.togglePlay();
+    if (navigator.vibrate) navigator.vibrate(8);
   });
 
   miniNextBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     player.next();
+    if (navigator.vibrate) navigator.vibrate(8);
   });
 
   // ── Touch events for seek slider ──────────────────────────
-  // app.js uses mousedown/mouseup which don't fire reliably on touch
   seekSlider.addEventListener('touchstart', () => {
     player.isDragging = true;
   }, { passive: true });
@@ -112,14 +126,13 @@
 
   // ── Sync mini player with player state ───────────────────
   function syncMiniPlayer(state) {
-    // Play/Pause icon
     miniPlayBtn.innerHTML = state.isPlaying
       ? '<i class="fa-solid fa-pause"></i>'
       : '<i class="fa-solid fa-play"></i>';
 
     if (state.track) {
       miniTitle.textContent  = state.track.Name || '';
-      miniArtist.textContent = state.track.Artists?.join(', ') || state.track.AlbumArtist || '';
+      miniArtist.textContent = (state.track.Artists && state.track.Artists.join(', ')) || state.track.AlbumArtist || '';
 
       const artUrl = api.getArtworkUrl(state.track.Id);
       if (miniArt.dataset.trackId !== state.track.Id) {
@@ -129,7 +142,6 @@
         miniArtPlaceholder.style.display = 'none';
       }
 
-      // Progress bar
       if (state.duration > 0) {
         const pct = (state.currentTime / state.duration) * 100;
         miniProgress.style.width = `${pct}%`;
@@ -144,12 +156,10 @@
     }
   }
 
-  // ── Wrap emitState to also sync the mini player ───────────
-  // We piggyback on emitState so the mini player stays in sync without
-  // using Object.defineProperty — just replace the function.
+  // Wrap emitState to also sync the mini player
   const _origEmit = player.emitState.bind(player);
   player.emitState = function () {
-    _origEmit(); // calls player.onStateChange → app.updatePlayerUI
+    _origEmit();
     syncMiniPlayer({
       isPlaying:   player.isPlaying,
       track:       player.currentTrack(),
@@ -159,7 +169,6 @@
   };
 
   // ── Bottom tab active state ───────────────────────────────
-  // Mirror sidebar nav-link active class changes to the mobile tabs.
   const sidebarLinks = document.querySelectorAll('#sidebar .nav-links li[data-route]');
 
   function syncTabActive() {
@@ -176,11 +185,7 @@
   const navObserver = new MutationObserver(syncTabActive);
   sidebarLinks.forEach(li => navObserver.observe(li, { attributes: true, attributeFilter: ['class'] }));
 
-  // Mobile tab clicks also trigger navigation via data-route.
-  // app.js bindEvents already queries [data-route] on the whole document,
-  // so the mobile nav buttons are covered — no extra wiring needed.
-
-  // ── Profile dropdown (tap to toggle) ─────────────────────
+  // ── Profile dropdown ──────────────────────────────────────
   profileBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     profileMenu.classList.toggle('show');
@@ -190,37 +195,136 @@
     profileMenu.classList.remove('show');
   });
 
+  // ── Context menu → bottom sheet on mobile ────────────────
+  const _origShowMenu = ui.showContextMenu.bind(ui);
+  const _origHideMenu = ui.hideContextMenu.bind(ui);
+
+  ui.showContextMenu = function (x, y, items) {
+    _origShowMenu(x, y, items);
+    this.contextMenu.classList.add('visible');
+    if (contextBackdrop) contextBackdrop.classList.add('show');
+  };
+
+  ui.hideContextMenu = function () {
+    this.contextMenu.classList.remove('visible');
+    if (contextBackdrop) contextBackdrop.classList.remove('show');
+    // Delay actual hide so slide-out animation plays
+    setTimeout(() => _origHideMenu.call(this), 250);
+  };
+
+  if (contextBackdrop) {
+    contextBackdrop.addEventListener('click', () => ui.hideContextMenu());
+  }
+
+  // ── Sleep Timer ───────────────────────────────────────────
+  let sleepTimerId   = null;
+  let sleepTimerMins = 0;
+  let sleepTimerEnd  = 0;
+  let sleepTimerInterval = null;
+
+  function openSleepSheet() {
+    sleepTimerSheet.classList.add('open');
+    if (contextBackdrop) contextBackdrop.classList.add('show');
+    // Highlight current selection
+    document.querySelectorAll('.sleep-timer-opt').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.mins) === sleepTimerMins);
+    });
+  }
+
+  function closeSleepSheet() {
+    sleepTimerSheet.classList.remove('open');
+    if (contextBackdrop) contextBackdrop.classList.remove('show');
+  }
+
+  function setSleepTimer(mins) {
+    clearSleepTimer();
+    sleepTimerMins = mins;
+    sleepTimerEnd  = Date.now() + mins * 60 * 1000;
+    sleepTimerId   = setTimeout(() => {
+      player.audio.pause();
+      sleepTimerBtn.classList.remove('active');
+      sleepTimerMins = 0;
+      ui.toast('Sleep timer: paused playback');
+    }, mins * 60 * 1000);
+    sleepTimerBtn.classList.add('active');
+    sleepTimerBtn.title = `Sleep in ${mins} min`;
+    ui.toast(`Sleep timer: ${mins} min`);
+  }
+
+  function clearSleepTimer() {
+    if (sleepTimerId) { clearTimeout(sleepTimerId); sleepTimerId = null; }
+    if (sleepTimerInterval) { clearInterval(sleepTimerInterval); sleepTimerInterval = null; }
+    sleepTimerMins = 0;
+    sleepTimerEnd  = 0;
+    sleepTimerBtn.classList.remove('active');
+    sleepTimerBtn.title = 'Sleep Timer';
+  }
+
+  if (sleepTimerBtn) {
+    sleepTimerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSleepSheet();
+    });
+  }
+
+  document.querySelectorAll('.sleep-timer-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mins = parseInt(btn.dataset.mins);
+      setSleepTimer(mins);
+      closeSleepSheet();
+    });
+  });
+
+  if (sleepTimerCancel) {
+    sleepTimerCancel.addEventListener('click', () => {
+      clearSleepTimer();
+      closeSleepSheet();
+      ui.toast('Sleep timer cancelled');
+    });
+  }
+
+  // Close sleep sheet when backdrop clicked (shared backdrop)
+  if (contextBackdrop) {
+    contextBackdrop.addEventListener('click', () => {
+      if (sleepTimerSheet.classList.contains('open')) closeSleepSheet();
+    });
+  }
+
   // ── Initial mini player state ─────────────────────────────
   syncMiniPlayer({ isPlaying: false, track: null, currentTime: 0, duration: 0 });
 
+  // ── Android back button closes full player / sheets ──────
+  if (isCapacitor) {
+    const AppPlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (AppPlugin) {
+      AppPlugin.addListener('backButton', () => {
+        if (sleepTimerSheet.classList.contains('open')) { closeSleepSheet(); return; }
+        if (ui.contextMenu && ui.contextMenu.classList.contains('visible')) { ui.hideContextMenu(); return; }
+        if (fullPlayer.classList.contains('open')) { closePlayer(); return; }
+      });
+    }
+  }
+
   // ── Android auto-update check ─────────────────────────────
   async function checkForAndroidUpdate() {
-    if (!window.Capacitor) return;
-
+    if (!isCapacitor) return;
     try {
       const AppPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
       if (!AppPlugin) return;
-
-      // Get installed APK version from AndroidManifest
       const info = await AppPlugin.getInfo();
-      const installedVersion = info.version; // e.g. "1.0.0"
+      const installedVersion = info.version;
 
-      // Fetch latest GitHub release
       const res = await fetch('https://api.github.com/repos/real69xaros/jellywave/releases/latest');
       if (!res.ok) return;
       const release = await res.json();
       if (!release.tag_name) return;
 
-      const latestVersion = release.tag_name.replace(/^v/, ''); // "1.0.1"
-
+      const latestVersion = release.tag_name.replace(/^v/, '');
       if (semverGreater(latestVersion, installedVersion)) {
         const apkAsset = release.assets.find(a => a.name.endsWith('.apk'));
-        const downloadUrl = apkAsset ? apkAsset.browser_download_url : release.html_url;
-        showUpdateBanner(latestVersion, downloadUrl);
+        showUpdateBanner(latestVersion, apkAsset ? apkAsset.browser_download_url : release.html_url);
       }
-    } catch (e) {
-      // Silently fail — update check is non-critical
-    }
+    } catch (e) { /* non-critical */ }
   }
 
   function semverGreater(a, b) {
@@ -234,7 +338,7 @@
   }
 
   function showUpdateBanner(version, downloadUrl) {
-    if (document.getElementById('update-banner')) return; // already shown
+    if (document.getElementById('update-banner')) return;
     const banner = document.createElement('div');
     banner.id = 'update-banner';
     banner.style.cssText = [
@@ -259,18 +363,10 @@
       </button>
     `;
     document.body.appendChild(banner);
-
-    document.getElementById('update-download-btn').addEventListener('click', () => {
-      // '_system' opens in the Android default browser so the APK can download
-      window.open(downloadUrl, '_system');
-    });
-
-    document.getElementById('update-dismiss-btn').addEventListener('click', () => {
-      banner.remove();
-    });
+    document.getElementById('update-download-btn').addEventListener('click', () => window.open(downloadUrl, '_system'));
+    document.getElementById('update-dismiss-btn').addEventListener('click', () => banner.remove());
   }
 
-  // Run update check 3 seconds after launch (let app finish loading first)
   setTimeout(checkForAndroidUpdate, 3000);
 
 })();

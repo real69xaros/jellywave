@@ -1754,3 +1754,340 @@ body.is-mobile .profile-page { padding: 20px 16px; }
 body.is-mobile #toast-container {
   bottom: calc(64px + 58px + env(safe-area-inset-bottom, 0px) + 12px);
 }
+
+/* =========================================================
+   MOBILE — ENHANCED OVERRIDES
+   ========================================================= */
+
+/* ── Fix song list: 4-col → 3-col with stacked title/artist ── */
+body.is-mobile .list-header { display: none !important; }
+
+body.is-mobile .list-item {
+  grid-template-columns: 44px 1fr auto;
+  grid-template-rows: 1.3em 1.3em;
+  padding: 10px 12px;
+  min-height: 64px;
+  align-items: center;
+  column-gap: 0;
+}
+
+body.is-mobile .col-num {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 44px;
+  justify-content: center;
+}
+
+body.is-mobile .col-title {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: flex-end;
+  font-size: 14px;
+  padding-right: 8px;
+  padding-bottom: 2px;
+}
+
+body.is-mobile .col-artist {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: flex-start;
+  font-size: 12px;
+  padding-right: 8px;
+  padding-top: 2px;
+}
+
+body.is-mobile .col-time {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 52px;
+}
+
+body.is-mobile .col-time > span { font-size: 12px; }
+
+/* Always show action buttons on mobile */
+body.is-mobile .row-like-btn {
+  opacity: 1 !important;
+  font-size: 18px;
+}
+body.is-mobile .mobile-menu-btn {
+  opacity: 1 !important;
+  font-size: 18px;
+}
+
+/* ── Touch feedback ── */
+body.is-mobile .list-item:active {
+  background: rgba(255,255,255,0.07);
+}
+body.is-mobile .card { transition: transform 0.1s, background 0.15s; }
+body.is-mobile .card:active { transform: scale(0.97); }
+body.is-mobile .card-h:active { transform: scale(0.97); }
+body.is-mobile .tab-btn:active { opacity: 0.7; }
+
+/* ── Card play button always visible on mobile ── */
+body.is-mobile .card-play-btn {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+  bottom: 60px;
+}
+
+/* ── Horizontal scroll card size ── */
+body.is-mobile .card-h { width: 140px; }
+
+/* ── Album header — stack on mobile ── */
+body.is-mobile .album-header {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px;
+  gap: 16px;
+  background: linear-gradient(to bottom, rgba(250,35,59,0.12), transparent);
+}
+body.is-mobile .album-header-art { width: 180px; height: 180px; }
+body.is-mobile .album-header-info { text-align: center; }
+body.is-mobile .album-header-title { font-size: 22px; }
+
+/* ── Full player: title left, like right ── */
+body.is-mobile .now-playing-left {
+  display: grid !important;
+  grid-template-areas:
+    "art art"
+    "info like";
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: start;
+  width: 100%;
+  flex: 1;
+  gap: 20px 0;
+  margin-bottom: 12px;
+}
+
+body.is-mobile #np-art {
+  grid-area: art;
+  justify-self: center;
+  align-self: center;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+
+body.is-mobile .now-playing-left .np-info {
+  grid-area: info;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+  align-self: center;
+  padding-right: 12px;
+}
+
+body.is-mobile #np-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.is-mobile #np-artist {
+  font-size: 15px;
+  text-align: left;
+  margin-top: 5px;
+}
+
+body.is-mobile .np-like-btn {
+  grid-area: like;
+  align-self: center;
+  font-size: 24px;
+  margin-left: 0;
+  padding: 4px;
+}
+
+/* ── Full player: volume row + sleep timer ── */
+body.is-mobile .now-playing-right {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+body.is-mobile #sleep-timer-btn {
+  display: flex !important;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+/* ── Section title sizes ── */
+body.is-mobile .view-title { font-size: 20px; }
+body.is-mobile .section-title { font-size: 18px; }
+
+/* ── Bottom nav active dot ── */
+.tab-btn { position: relative; }
+.tab-btn.active::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ── Mini player prev button ── */
+#mini-prev-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--text-primary);
+  border-radius: 50%;
+}
+#mini-prev-btn:active { background: var(--bg-highlight); }
+
+/* ── Context menu backdrop ── */
+.context-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9997;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+.context-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Context menu as bottom sheet on mobile ── */
+body.is-mobile .context-menu {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  top: auto !important;
+  width: 100% !important;
+  border-radius: 20px 20px 0 0;
+  min-width: unset;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+body.is-mobile .context-menu.visible {
+  transform: translateY(0);
+}
+body.is-mobile .context-menu::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  margin: 12px auto 8px;
+}
+body.is-mobile .context-menu-item {
+  padding: 16px 24px;
+  font-size: 16px;
+}
+body.is-mobile .context-menu-item i {
+  font-size: 18px;
+  width: 24px;
+}
+
+/* ── Sleep timer bottom sheet ── */
+.sleep-timer-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-elevated);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 0 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  z-index: 9999;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.6);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
+}
+.sleep-timer-sheet.open {
+  transform: translateY(0);
+  pointer-events: all;
+}
+.sleep-timer-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  margin: 12px auto 20px;
+}
+.sleep-timer-sheet h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.sleep-timer-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sleep-timer-opt {
+  padding: 16px 0;
+  background: var(--bg-card);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.sleep-timer-opt:active { background: var(--bg-card-hover); }
+.sleep-timer-opt.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.sleep-timer-cancel {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sleep-timer-cancel:active { background: var(--bg-card-hover); }
+
+/* Sleep timer active badge on button */
+#sleep-timer-btn.active { color: var(--accent) !important; }
+
+/* ── Ensure card grid is 2-col on narrow screens ── */
+@media (max-width: 480px) {
+  .grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0 16px;
+  }
+}
+
+/* ── Playlist page on mobile ── */
+body.is-mobile .playlist-page-wrapper { padding: 0; }
+body.is-mobile .list-view { padding: 0 8px; }

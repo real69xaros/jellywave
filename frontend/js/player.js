@@ -186,32 +186,63 @@ class AudioPlayer {
     if ('mediaSession' in navigator) {
       const track = this.currentTrack();
       if (track) {
-        let artworkUrl = api.getArtworkUrl(track.Id);
-        let absoluteArt = artworkUrl.startsWith('http') ? artworkUrl : window.location.origin + artworkUrl;
-        
-        storage.get('artwork', track.Id).then(blob => {
-            const finalArt = blob ? URL.createObjectURL(blob) : absoluteArt;
+        navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
+
+        const artworkUrl = api.getArtworkUrl(track.Id);
+        const absoluteArt = artworkUrl.startsWith('http') ? artworkUrl : (window.location.origin + artworkUrl);
+
+        if (this._lastMediaSessionTrack !== track.Id) {
+          this._lastMediaSessionTrack = track.Id;
+
+          const setMeta = (artSrc) => {
             navigator.mediaSession.metadata = new MediaMetadata({
-              title: track.Name,
-              artist: track.AlbumArtist || track.ArtistName || 'Unknown Artist',
+              title: track.Name || 'Unknown Title',
+              artist: (track.Artists && track.Artists.join(', ')) || track.AlbumArtist || track.ArtistName || 'Unknown Artist',
               album: track.Album || 'Unknown Album',
               artwork: [
-                { src: finalArt, sizes: '512x512', type: 'image/jpeg' }
+                { src: artSrc, sizes: '96x96',   type: 'image/jpeg' },
+                { src: artSrc, sizes: '128x128',  type: 'image/jpeg' },
+                { src: artSrc, sizes: '256x256',  type: 'image/jpeg' },
+                { src: artSrc, sizes: '512x512',  type: 'image/jpeg' },
               ]
             });
-        });
+          };
 
-        navigator.mediaSession.setActionHandler('play', () => this.togglePlay());
-        navigator.mediaSession.setActionHandler('pause', () => this.togglePlay());
-        navigator.mediaSession.setActionHandler('previoustrack', () => this.prev());
-        navigator.mediaSession.setActionHandler('nexttrack', () => this.next());
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-          if (details.fastSeek && 'fastSeek' in this.audio) {
-              this.audio.fastSeek(details.seekTime);
+          if (typeof storage !== 'undefined') {
+            storage.get('artwork', track.Id).then(blob => {
+              setMeta(blob ? URL.createObjectURL(blob) : absoluteArt);
+            }).catch(() => setMeta(absoluteArt));
           } else {
-              this.seek(details.seekTime);
+            setMeta(absoluteArt);
           }
-        });
+
+          navigator.mediaSession.setActionHandler('play',          () => this.audio.play());
+          navigator.mediaSession.setActionHandler('pause',         () => this.audio.pause());
+          navigator.mediaSession.setActionHandler('previoustrack', () => this.prev());
+          navigator.mediaSession.setActionHandler('nexttrack',     () => this.next());
+          navigator.mediaSession.setActionHandler('seekto', (d) => {
+            const t = d.seekTime;
+            if (d.fastSeek && 'fastSeek' in this.audio) this.audio.fastSeek(t);
+            else this.seek(t);
+          });
+          try {
+            navigator.mediaSession.setActionHandler('seekbackward', (d) => this.seek(Math.max(0, this.audio.currentTime - (d.seekOffset || 10))));
+            navigator.mediaSession.setActionHandler('seekforward',  (d) => this.seek(Math.min(this.audio.duration || 0, this.audio.currentTime + (d.seekOffset || 10))));
+          } catch(e) {}
+        }
+
+        if (this.audio.duration && !isNaN(this.audio.duration)) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration:     this.audio.duration,
+              playbackRate: this.audio.playbackRate || 1,
+              position:     this.audio.currentTime,
+            });
+          } catch(e) {}
+        }
+      } else {
+        navigator.mediaSession.playbackState = 'none';
+        this._lastMediaSessionTrack = null;
       }
     }
   }
