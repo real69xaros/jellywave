@@ -9,6 +9,7 @@ class AudioPlayer {
     this.isDragging = false;
     this.isRepeating = false;
     this.isShuffling = false;
+    this._playGen = 0;
 
     if (this.audio) {
       this.audio.addEventListener('timeupdate', () => {
@@ -20,11 +21,20 @@ class AudioPlayer {
          if (this.isRepeating) { this.audio.currentTime = 0; this.audio.play(); }
          else this.next();
       });
-      // Preload next track when current one is near the end
       this.audio.addEventListener('timeupdate', () => {
         if (this.audio.duration && this.audio.currentTime > this.audio.duration - 20) {
           this._preloadNext();
         }
+      });
+      this.audio.addEventListener('error', () => {
+        if (!this.audio.src) return;
+        const code = this.audio.error?.code;
+        if (code === 1) return; // MEDIA_ERR_ABORTED — user-initiated, not an error
+        const msgs = { 2: 'Network error', 3: 'Decode error', 4: 'Format not supported' };
+        console.error('Audio error', code, this.audio.error);
+        if (typeof ui !== 'undefined') ui.toast(`Playback error: ${msgs[code] || 'track failed to load'}`, 'error');
+        this.isPlaying = false;
+        this.emitState();
       });
     }
   }
@@ -47,6 +57,7 @@ class AudioPlayer {
   }
 
   async playTrack(track, queue = null) {
+    const myGen = ++this._playGen;
     this.audio.pause();
 
     if (queue) {
@@ -62,18 +73,19 @@ class AudioPlayer {
       this.currentIndex++;
     }
 
-    if (this.audio.dataset.preloaded === track.Id) {
-        delete this.audio.dataset.preloaded;
+    if (this.audio.dataset.preloaded !== track.Id) {
+      const blob = await storage.get('blobs', track.Id);
+      if (myGen !== this._playGen) return; // newer playTrack call already took over
+      this.audio.src = blob
+        ? URL.createObjectURL(blob)
+        : api.getStreamUrl(track.Id);
     } else {
-        const blob = await storage.get('blobs', track.Id);
-        if (blob) {
-            this.audio.src = URL.createObjectURL(blob);
-        } else {
-            this.audio.src = await api.getDirectStreamUrl(track.Id);
-        }
+      delete this.audio.dataset.preloaded;
     }
 
-    this.audio.play().catch(e => console.error(e));
+    this.audio.play().catch(e => {
+      if (e.name !== 'AbortError') console.error('play() rejected:', e);
+    });
     this.emitState();
   }
 
